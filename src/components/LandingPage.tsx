@@ -103,16 +103,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
             <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               Trusted by 10,000+ professionals
-            </div>
-
+              </div>
+              
             <h1 className="mt-6 text-5xl/tight sm:text-6xl/tight font-extrabold tracking-tight text-slate-900">
               Your Digital Identity,
               <br />
               <span className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 bg-clip-text text-transparent">
                 Reimagined
-              </span>
-            </h1>
-
+                </span>
+              </h1>
+              
             <p className="mt-6 max-w-xl text-lg text-slate-700">
               Transform how you connect. Create a professional QR profile with your face at the center — making every introduction memorable and every follow‑up effortless.
             </p>
@@ -134,19 +134,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400 text-sm select-none">
                   qrprofile.com/
                 </div>
-                <input
+                      <input
                   id="handle"
                   name="handle"
-                  type="text"
+                        type="text"
                   autoComplete="off"
                   inputMode="text"
                   placeholder={placeholderNames[currentPlaceholder]}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
                   className="w-full rounded-2xl border border-slate-300 bg-white/90 pl-[9.5rem] pr-4 py-3 text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20"
                   aria-describedby="handle-help"
-                  maxLength={20}
-                />
+                        maxLength={20}
+                      />
               </div>
               <button
                 type="submit"
@@ -164,8 +164,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               <ShieldCheck className="h-4 w-4" />
               <span>Privacy-first. You control what's shared.</span>
             </div>
-          </div>
-
+            </div>
+            
           {/* Visual */}
           <div className="relative">
             <motion.div
@@ -207,10 +207,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               <div className="absolute right-0 top-10 h-56 w-56 rounded-full bg-indigo-300/40" />
               <div className="absolute -right-6 bottom-0 h-64 w-64 rounded-full bg-violet-300/40" />
             </div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
   );
 
 
@@ -221,11 +221,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
         <div className="mx-auto max-w-3xl text-center mb-16">
           <h2 className="text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
             Everything you need to <span className={textGradient}>stand out</span>
-          </h2>
+            </h2>
           <p className="text-xl text-slate-600 leading-relaxed">
             Professional features designed to make every connection count. From instant sharing to smart analytics.
-          </p>
-        </div>
+            </p>
+          </div>
           
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {[
@@ -290,9 +290,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
           </h2>
           <p className="text-xl text-slate-600 leading-relaxed">
             See how QR Profile is transforming networking for executives, entrepreneurs, and creatives.
-          </p>
-        </div>
-        
+              </p>
+            </div>
+            
         <div className="grid gap-8 md:grid-cols-3">
           {[
             {
@@ -328,8 +328,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               </div>
             </div>
           ))}
-        </div>
-      </div>
+            </div>
+          </div>
     </section>
   );
 
@@ -346,19 +346,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
           Join thousands of professionals who are already making every connection count with QR Profile.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <button
+            <button
             onClick={handleClaimUsername}
-            className="bg-white text-slate-900 hover:bg-blue-50 rounded-2xl px-8 py-4 font-bold text-lg inline-flex items-center gap-3 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
+            className="btn bg-white text-slate-900 hover:bg-blue-50 inline-flex items-center gap-3"
           >
-            Start Free Trial <ArrowRight className="h-5 w-5"/>
+            Start Building Your Profile <ArrowRight className="h-5 w-5"/>
           </button>
-          <button className="border-2 border-white/30 text-white hover:bg-white/10 rounded-2xl px-8 py-4 font-bold text-lg transition-all duration-300">
+          <button className="btn-ghost border-white/30 text-white hover:bg-white/10">
             Schedule Demo
-          </button>
+            </button>
         </div>
         <p className="text-blue-100 mt-6 text-sm">No credit card required • 14-day free trial • Cancel anytime</p>
-      </div>
-    </section>
+        </div>
+      </section>
   );
 
   const Footer = () => (
@@ -395,7 +395,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
             </ul>
           </div>
           
-          <div>
+                <div>
             <div className="text-lg font-bold text-white mb-6">Company</div>
             <ul className="space-y-3 text-slate-400">
               <li><a className="hover:text-white transition-colors" href="#about">About</a></li>
@@ -403,10 +403,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               <li><a className="hover:text-white transition-colors" href="#">Careers</a></li>
               <li><a className="hover:text-white transition-colors" href="#">Blog</a></li>
             </ul>
-          </div>
-        </div>
-      </div>
-      
+                </div>
+              </div>
+            </div>
+            
       <div className="border-t border-slate-800">
         <div className="mx-auto max-w-7xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-slate-400 text-sm">

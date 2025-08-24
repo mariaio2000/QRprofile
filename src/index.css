@@ -1,3 +1,57 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom CSS Variables and Utilities */
+:root{
+  /* fundal & text */
+  --bg:            #F7F7FA;  /* alb cald */
+  --fg:            #121317;  /* aproape negru, ușor soft */
+
+  /* contururi & suprafețe */
+  --card:          #FFFFFF;
+  --muted:         #F0F1F5;
+  --border:        #E6E7EE;
+
+  /* accent (fără gradient) */
+  --primary:       #6C7BFF;  /* mov-albastru desaturat */
+  --primary-fg:    #FFFFFF;
+
+  /* secundar (folosit rar) */
+  --secondary:     #A5AEFF;  /* o idee mai deschis */
+  --secondary-fg:  #0F1115;
+}
+
+/* Custom Button Styles */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center
+           rounded-2xl px-6 py-3 font-semibold
+           bg-[#6C7BFF] text-white
+           shadow-soft transition
+           hover:opacity-90 active:opacity-80
+           focus:outline-none focus:ring-2 focus:ring-[#6C7BFF]/30;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center
+           rounded-2xl px-6 py-3 font-semibold
+           bg-transparent text-[#121317] border border-[#E6E7EE]
+           hover:bg-[#F0F1F5];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center
+           rounded-2xl px-6 py-3 font-semibold
+           bg-[#A5AEFF] text-[#0F1115]
+           shadow-soft hover:opacity-90;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .bg-app     { background: var(--bg); }
+  .text-app   { color: var(--fg); }
+  .bg-card    { background: var(--card); }
+  .border-app { border-color: var(--border); }
+}

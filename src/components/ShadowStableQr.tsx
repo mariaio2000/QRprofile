@@ -108,3 +108,4 @@ const ShadowStableQr = memo(function ShadowStableQr({
 });
 
 export default ShadowStableQr;
+
