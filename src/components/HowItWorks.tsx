@@ -61,7 +61,7 @@ export default function HowItWorks() {
           viewport={{ once: true }}
           className="text-3xl sm:text-4xl font-extrabold text-center text-foreground mb-6"
         >
-          How it <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-sky-400">works</span>
+          How it <span className="text-primary-600">works</span>
         </motion.h2>
         
         <motion.p 
@@ -222,7 +222,7 @@ export default function HowItWorks() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <button className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-violet-500 to-sky-400 text-white hover:shadow-lg hover:scale-105 transition-all duration-300">
+              <button className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg bg-primary-600 text-white hover:shadow-lg hover:scale-105 transition-all duration-300">
                 Start Building Your Profile
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />

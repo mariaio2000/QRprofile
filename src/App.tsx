@@ -179,14 +179,19 @@ function App() {
   }
 
   if (!user) {
-    return <LandingPage onEnterApp={handleEnterApp} />;
+    return <LandingPage onEnterApp={handleEnterApp} user={null} onNavigateToProfile={() => {}} onLogout={() => {}} />;
   }
 
   // Show landing page overlay if requested
   if (showLandingPage) {
     return (
           <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <LandingPage onEnterApp={handleEnterApp} />
+      <LandingPage 
+        onEnterApp={handleEnterApp} 
+        user={user} 
+        onNavigateToProfile={() => setShowLandingPage(false)}
+        onLogout={handleLogout}
+      />
     </div>
     );
   }

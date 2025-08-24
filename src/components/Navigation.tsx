@@ -94,18 +94,19 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange, user
                       <Settings className="w-4 h-4" />
                       <span>Account Settings</span>
                     </button>
-                    
-                    <button 
-                      onClick={onLogout}
-                      className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={onLogout}
+              className="flex items-center justify-center w-10 h-10 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
+              title="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>

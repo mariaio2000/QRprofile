@@ -4,27 +4,43 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
-        fg: "var(--fg)",
-        card: "var(--card)",
-        muted: "var(--muted)",
-        border: "var(--border)",
+        bg: 'var(--bg)',
+        surface: 'var(--surface)',
+        surfaceMuted: 'var(--surface-muted)',
+        border: 'var(--border)',
         primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-fg)",
+          500: 'var(--primary-500)',
+          600: 'var(--primary-600)',
+          700: 'var(--primary-700)',
         },
-        secondary: {
-          DEFAULT: "var(--secondary)",
-          foreground: "var(--secondary-fg)",
+        accent: { 
+          500: 'var(--accent-500)' 
         },
+        text: { 
+          700: 'var(--text-700)', 
+          900: 'var(--text-900)' 
+        },
+        muted: { 
+          500: 'var(--muted-500)' 
+        },
+        success: { 
+          600: 'var(--success-600)' 
+        },
+        warning: { 
+          600: 'var(--warning-600)' 
+        },
+        danger: { 
+          600: 'var(--danger-600)' 
+        },
+        ring: 'var(--ring)'
       },
-      borderRadius: {
-        xl: "14px",
-        "2xl": "20px",
+      borderRadius: { 
+        xl: '16px', 
+        '2xl': '24px' 
       },
-      boxShadow: {
-        soft: "0 6px 18px rgba(20, 22, 30, 0.06)",
-      },
+      boxShadow: { 
+        soft: '0 8px 24px rgba(15,23,42,0.06)' 
+      }
     },
   },
   plugins: [],
