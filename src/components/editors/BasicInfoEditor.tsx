@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, Briefcase, MapPin, Mail, Phone, FileText, Upload, X } from 'lucide-react';
+import { User, Upload, X } from 'lucide-react';
 import { ProfileData } from '../../types/profile';
 import { supabase } from '../../lib/supabase';
 
@@ -71,152 +71,76 @@ const BasicInfoEditor: React.FC<BasicInfoEditorProps> = ({ profileData, onUpdate
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
-        <User className="w-5 h-5 mr-2 text-blue-600" />
-        Basic Information
-      </h3>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Profile Image</label>
-          
-          <div className="flex items-start space-x-4">
-            {/* Current Image Preview */}
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-200">
-                <img
-                  src={profileData.profileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              
-              {profileData.profileImage !== 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=400' && (
-                <button
-                  onClick={handleRemoveImage}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                  title="Remove image"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-
-            {/* Upload Controls */}
-            <div className="flex-1">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
+    <div className="space-y-6">
+      {/* Profile Image Section */}
+      <div>
+        <label className="block text-sm font-medium text-text-700 mb-4">Profile Photo</label>
+        
+        <div className="flex items-start space-x-6">
+          {/* Current Image Preview */}
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-surface-muted border-2 border-border">
+              <img
+                src={profileData.profileImage}
+                alt="Profile"
+                className="w-full h-full object-cover"
               />
-              
-              <button
-                onClick={triggerFileInput}
-                disabled={isUploading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Upload className="w-4 h-4" />
-                <span>{isUploading ? 'Uploading...' : 'Upload Image'}</span>
-              </button>
-              
-              <p className="text-xs text-gray-500 mt-2">
-                JPG, PNG, GIF up to 5MB
-              </p>
-              
-              {uploadError && (
-                <p className="text-xs text-red-500 mt-1">{uploadError}</p>
-              )}
             </div>
+            
+            {profileData.profileImage !== 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=400' && (
+              <button
+                onClick={handleRemoveImage}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-danger-600 text-white rounded-full flex items-center justify-center hover:bg-danger-700 transition-colors"
+                title="Remove image"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+          {/* Upload Controls */}
+          <div className="flex-1">
             <input
-              type="text"
-              value={profileData.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="Alex Johnson"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Briefcase className="w-4 h-4 inline mr-1" />
-              Job Title
-            </label>
-            <input
-              type="text"
-              value={profileData.title}
-              onChange={(e) => onUpdate({ title: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="Product Designer"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <FileText className="w-4 h-4 inline mr-1" />
-            Bio
-          </label>
-          <textarea
-            value={profileData.bio}
-            onChange={(e) => onUpdate({ bio: e.target.value })}
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-            placeholder="Tell people about yourself..."
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Mail className="w-4 h-4 inline mr-1" />
-              Email
-            </label>
-            <input
-              type="email"
-              value={profileData.email}
-              onChange={(e) => onUpdate({ email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="alex@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Phone className="w-4 h-4 inline mr-1" />
-              Phone
-            </label>
-            <input
-              type="tel"
-              value={profileData.phone || ''}
-              onChange={(e) => onUpdate({ phone: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="+1 (555) 123-4567"
-            />
+            
+            <button
+              onClick={triggerFileInput}
+              disabled={isUploading}
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{isUploading ? 'Uploading...' : 'Upload Photo'}</span>
+            </button>
+            
+            <p className="text-xs text-text-500 mt-2">
+              JPG, PNG, GIF up to 5MB
+            </p>
+            
+            {uploadError && (
+              <p className="text-xs text-danger-600 mt-1">{uploadError}</p>
+            )}
           </div>
         </div>
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            <MapPin className="w-4 h-4 inline mr-1" />
-            Location
-          </label>
-          <input
-            type="text"
-            value={profileData.location || ''}
-            onChange={(e) => onUpdate({ location: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            placeholder="San Francisco, CA"
-          />
-        </div>
+      {/* Name Section */}
+      <div>
+        <label className="block text-sm font-medium text-text-700 mb-2">
+          <User className="w-4 h-4 inline mr-2" />
+          Full Name
+        </label>
+        <input
+          type="text"
+          value={profileData.name}
+          onChange={(e) => onUpdate({ name: e.target.value })}
+          className="w-full px-4 py-3 border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent transition-all bg-surface"
+          placeholder="Enter your full name"
+        />
       </div>
     </div>
   );

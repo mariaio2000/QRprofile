@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Check, X, AlertCircle, Loader } from 'lucide-react';
+import { Globe, Check, X, AlertCircle, Loader } from 'lucide-react';
 import { useProfile } from '../../hooks/useProfile';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -105,86 +105,79 @@ const UsernameEditor: React.FC<UsernameEditorProps> = ({ currentUsername, onUser
 
   const getStatusIcon = () => {
     if (isChecking) {
-      return <Loader className="w-4 h-4 text-gray-400 animate-spin" />;
+      return <Loader className="w-4 h-4 text-text-500 animate-spin" />;
     }
     if (availability.available === true) {
-      return <Check className="w-4 h-4 text-green-500" />;
+      return <Check className="w-4 h-4 text-success-600" />;
     }
     if (availability.available === false) {
-      return <X className="w-4 h-4 text-red-500" />;
+      return <X className="w-4 h-4 text-danger-600" />;
     }
     return null;
   };
 
   const getStatusColor = () => {
-    if (availability.available === true) return 'text-green-600';
-    if (availability.available === false) return 'text-red-600';
-    return 'text-gray-600';
+    if (availability.available === true) return 'text-success-600';
+    if (availability.available === false) return 'text-danger-600';
+    return 'text-text-500';
   };
 
   const getBorderColor = () => {
-    if (availability.available === true) return 'border-green-300 focus:ring-green-500';
-    if (availability.available === false) return 'border-red-300 focus:ring-red-500';
-    return 'border-gray-200 focus:ring-violet-500';
+    if (availability.available === true) return 'border-success-600 focus:ring-success-600';
+    if (availability.available === false) return 'border-danger-600 focus:ring-danger-600';
+    return 'border-border focus:ring-ring';
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-        <User className="w-5 h-5 mr-2 text-blue-600" />
-        Your profile URL
-      </h3>
-      
-      <div className="space-y-4">
-        <div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-gray-500 text-sm">qrprofile.com/</span>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => handleUsernameChange(e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all pr-10 ${getBorderColor()}`}
-                placeholder="your-username"
-                maxLength={20}
-              />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                {getStatusIcon()}
-              </div>
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-text-700 mb-2">
+          <Globe className="w-4 h-4 inline mr-2" />
+          Profile URL
+        </label>
+        
+        <div className="flex items-center space-x-2">
+          <span className="text-text-500 text-sm">qrprofile.com/</span>
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-4 focus:border-transparent transition-all pr-10 bg-surface ${getBorderColor()}`}
+              placeholder="your-username"
+              maxLength={20}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {getStatusIcon()}
             </div>
           </div>
-          
-          {availability.message && (
-            <div className={`flex items-center space-x-2 mt-2 text-sm ${getStatusColor()}`}>
-              {availability.available === false && <AlertCircle className="w-4 h-4" />}
-              <span>{availability.message}</span>
-            </div>
-          )}
-          
-          
         </div>
-
-        {hasChanges && availability.available && (
-          <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-blue-700">
-                You have unsaved changes to your username
-              </span>
-            </div>
-            <button
-              onClick={handleSaveUsername}
-              disabled={isUpdating || !availability.available}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              {isUpdating ? 'Saving...' : 'Save Username'}
-            </button>
+        
+        {availability.message && (
+          <div className={`flex items-center space-x-2 mt-2 text-sm ${getStatusColor()}`}>
+            {availability.available === false && <AlertCircle className="w-4 h-4" />}
+            <span>{availability.message}</span>
           </div>
         )}
-
-        
       </div>
+
+      {hasChanges && availability.available && (
+        <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-xl">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-primary-600" />
+            <span className="text-sm text-primary-700">
+              You have unsaved changes to your username
+            </span>
+          </div>
+          <button
+            onClick={handleSaveUsername}
+            disabled={isUpdating || !availability.available}
+            className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            {isUpdating ? 'Saving...' : 'Save Username'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

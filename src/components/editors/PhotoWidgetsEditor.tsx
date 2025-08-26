@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Plus, X, Upload, Grid3X3, Image as ImageIcon } from 'lucide-react';
+import { Image, Plus, X, Upload, Grid3X3, Image as ImageIcon } from 'lucide-react';
 import { ProfileData } from '../../types/profile';
 import { supabase } from '../../lib/supabase';
 
@@ -109,23 +109,12 @@ const PhotoWidgetsEditor: React.FC<PhotoWidgetsEditorProps> = ({ profileData, on
     }
   };
 
-  const handleRemovePhoto = (widgetId: string, photoUrl: string) => {
+  const handleRemovePhoto = (widgetId: string, photoIndex: number) => {
     const updatedWidgets = photoWidgets.map(widget => 
       widget.id === widgetId 
-        ? { ...widget, photos: widget.photos.filter(url => url !== photoUrl) }
+        ? { ...widget, photos: widget.photos.filter((_, index) => index !== photoIndex) }
         : widget
     );
-
-    onUpdate({ photoWidgets: updatedWidgets });
-  };
-
-  const handleLayoutChange = (widgetId: string, layout: 'grid' | 'carousel') => {
-    const updatedWidgets = photoWidgets.map(widget => 
-      widget.id === widgetId 
-        ? { ...widget, layout }
-        : widget
-    );
-
     onUpdate({ photoWidgets: updatedWidgets });
   };
 
@@ -135,183 +124,154 @@ const PhotoWidgetsEditor: React.FC<PhotoWidgetsEditorProps> = ({ profileData, on
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-          <Camera className="w-5 h-5 mr-2 text-blue-600" />
-          Photo Widgets
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-text-900 flex items-center">
+          <Image className="w-5 h-5 mr-2 text-primary-600" />
+          Photo Galleries
         </h3>
         <button
           onClick={() => setIsAddingWidget(true)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Widget</span>
+          <span>Add Gallery</span>
         </button>
       </div>
+
+      <div className="space-y-4">
+        {photoWidgets.map((widget) => (
+          <div key={widget.id} className="border border-border rounded-xl p-4 bg-surface">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h4 className="font-semibold text-text-900 mb-1">{widget.title}</h4>
+                <div className="flex items-center space-x-2 text-sm text-text-600">
+                  <span>{widget.photos.length} photos</span>
+                  <span>•</span>
+                  <span className="capitalize">{widget.layout} layout</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleRemoveWidget(widget.id)}
+                className="p-2 bg-danger-100 text-danger-600 rounded-xl hover:bg-danger-200 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {widget.photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {widget.photos.slice(0, 6).map((photo, index) => (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-surface-muted">
+                    <img
+                      src={photo}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => handleRemovePhoto(widget.id, index)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-danger-600 text-white rounded-full flex items-center justify-center hover:bg-danger-700 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {widget.photos.length > 6 && (
+                  <div className="aspect-square rounded-lg bg-surface-muted flex items-center justify-center text-text-500 text-sm">
+                    +{widget.photos.length - 6} more
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={() => triggerFileInput(widget.id)}
+              disabled={uploadingPhotos.includes(widget.id)}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 border-2 border-dashed border-border rounded-xl text-text-600 hover:text-text-900 hover:border-primary-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-4 h-4" />
+              <span>
+                {uploadingPhotos.includes(widget.id) 
+                  ? 'Uploading...' 
+                  : widget.photos.length === 0 
+                    ? 'Add photos to this gallery' 
+                    : 'Add more photos'
+                }
+              </span>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {isAddingWidget && (
+        <div className="border border-border rounded-xl p-6 bg-surface">
+          <h4 className="font-semibold text-text-900 mb-4">Create New Photo Gallery</h4>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-700 mb-2">Gallery Title</label>
+              <input
+                type="text"
+                value={newWidget.title}
+                onChange={(e) => setNewWidget({ ...newWidget, title: e.target.value })}
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent transition-all bg-surface"
+                placeholder="e.g., My Work, Portfolio, Behind the Scenes"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-700 mb-2">Layout</label>
+              <div className="flex space-x-4">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    value="grid"
+                    checked={newWidget.layout === 'grid'}
+                    onChange={(e) => setNewWidget({ ...newWidget, layout: e.target.value as 'grid' | 'carousel' })}
+                    className="w-4 h-4 text-primary-600 border-border focus:ring-ring"
+                  />
+                  <span className="text-sm text-text-700">Grid</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    value="carousel"
+                    checked={newWidget.layout === 'carousel'}
+                    onChange={(e) => setNewWidget({ ...newWidget, layout: e.target.value as 'grid' | 'carousel' })}
+                    className="w-4 h-4 text-primary-600 border-border focus:ring-ring"
+                  />
+                  <span className="text-sm text-text-700">Carousel</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleAddWidget}
+                className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all"
+              >
+                Create Gallery
+              </button>
+              <button
+                onClick={() => setIsAddingWidget(false)}
+                className="px-4 py-2 text-text-700 hover:text-text-900 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
-        onChange={(e) => currentWidgetId && handlePhotoUpload(e, currentWidgetId)}
+        onChange={(e) => {
+          if (currentWidgetId) {
+            handlePhotoUpload(e, currentWidgetId);
+          }
+        }}
         className="hidden"
       />
-
-      <div className="space-y-6">
-        {photoWidgets.map((widget) => (
-          <div key={widget.id} className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <h4 className="font-semibold text-gray-900">{widget.title}</h4>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleLayoutChange(widget.id, 'grid')}
-                    className={`p-2 rounded-lg transition-all ${
-                      widget.layout === 'grid'
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-400 hover:text-blue-600'
-                    }`}
-                    title="Grid layout"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleLayoutChange(widget.id, 'carousel')}
-                    className={`p-2 rounded-lg transition-all ${
-                      widget.layout === 'carousel'
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-400 hover:text-blue-600'
-                    }`}
-                    title="Carousel layout"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => triggerFileInput(widget.id)}
-                  disabled={uploadingPhotos.includes(widget.id)}
-                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>{uploadingPhotos.includes(widget.id) ? 'Uploading...' : 'Add Photos'}</span>
-                </button>
-                <button
-                  onClick={() => handleRemoveWidget(widget.id)}
-                  className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Photos Grid */}
-            {widget.photos.length > 0 ? (
-              <div className={`grid gap-3 ${
-                widget.layout === 'grid' 
-                  ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' 
-                  : 'grid-cols-1 sm:grid-cols-2'
-              }`}>
-                {widget.photos.map((photoUrl, index) => (
-                  <div key={index} className="relative group">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                      <img
-                        src={photoUrl}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleRemovePhoto(widget.id, photoUrl)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Camera className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No photos added yet</p>
-                <p className="text-sm">Click "Add Photos" to get started</p>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {isAddingWidget && (
-          <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 bg-blue-50">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Widget title (e.g., 'Portfolio', 'Recent Work')"
-                value={newWidget.title}
-                onChange={(e) => setNewWidget({ ...newWidget, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    name="layout"
-                    value="grid"
-                    checked={newWidget.layout === 'grid'}
-                    onChange={(e) => setNewWidget({ ...newWidget, layout: e.target.value as 'grid' })}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <Grid3X3 className="w-4 h-4" />
-                  <span className="text-sm">Grid</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    name="layout"
-                    value="carousel"
-                    checked={newWidget.layout === 'carousel'}
-                    onChange={(e) => setNewWidget({ ...newWidget, layout: e.target.value as 'carousel' })}
-                    className="text-blue-600 focus:ring-blue-500"
-                  />
-                  <ImageIcon className="w-4 h-4" />
-                  <span className="text-sm">Carousel</span>
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleAddWidget}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                >
-                  Add Widget
-                </button>
-                <button
-                  onClick={() => setIsAddingWidget(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {photoWidgets.length === 0 && !isAddingWidget && (
-          <div className="text-center py-12 text-gray-500">
-            <Camera className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h4 className="text-lg font-medium mb-2">No photo widgets yet</h4>
-            <p className="mb-4">Add photo galleries to showcase your work, portfolio, or memories</p>
-            <button
-              onClick={() => setIsAddingWidget(true)}
-                              className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Your First Widget</span>
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

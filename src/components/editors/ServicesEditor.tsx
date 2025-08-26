@@ -49,15 +49,15 @@ const ServicesEditor: React.FC<ServicesEditorProps> = ({ profileData, onUpdate }
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-          <Briefcase className="w-5 h-5 mr-2 text-blue-600" />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-text-900 flex items-center">
+          <Briefcase className="w-5 h-5 mr-2 text-primary-600" />
           Services & Offerings
         </h3>
         <button
           onClick={() => setIsAddingService(true)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all"
         >
           <Plus className="w-4 h-4" />
           <span>Add Service</span>
@@ -66,25 +66,25 @@ const ServicesEditor: React.FC<ServicesEditorProps> = ({ profileData, onUpdate }
 
       <div className="space-y-4">
         {profileData.services.map((service) => (
-          <div key={service.id} className="border border-gray-200 rounded-lg p-4">
+          <div key={service.id} className="border border-border rounded-xl p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
-                  <h4 className="font-semibold text-gray-900">{service.title}</h4>
+                  <h4 className="font-semibold text-text-900">{service.title}</h4>
                   {service.featured && (
-                    <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    <Star className="w-4 h-4 text-warning-600 fill-current" />
                   )}
                 </div>
-                <p className="text-gray-600 text-sm mb-2">{service.description}</p>
-                <p className="text-blue-600 font-semibold">{service.price}</p>
+                <p className="text-text-700 text-sm mb-2">{service.description}</p>
+                <p className="text-primary-600 font-semibold">{service.price}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => handleToggleFeatured(service.id)}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-2 rounded-xl transition-all ${
                     service.featured
-                      ? 'bg-yellow-100 text-yellow-600'
-                      : 'bg-gray-100 text-gray-400 hover:text-yellow-600'
+                      ? 'bg-warning-100 text-warning-600'
+                      : 'bg-surface-muted text-text-400 hover:text-warning-600'
                   }`}
                   title="Toggle featured"
                 >
@@ -92,7 +92,7 @@ const ServicesEditor: React.FC<ServicesEditorProps> = ({ profileData, onUpdate }
                 </button>
                 <button
                   onClick={() => handleRemoveService(service.id)}
-                  className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                  className="p-2 bg-danger-100 text-danger-600 rounded-xl hover:bg-danger-200 transition-all"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -100,60 +100,71 @@ const ServicesEditor: React.FC<ServicesEditorProps> = ({ profileData, onUpdate }
             </div>
           </div>
         ))}
+      </div>
 
-        {isAddingService && (
-          <div className="border-2 border-dashed border-violet-300 rounded-lg p-4 bg-violet-50">
-            <div className="space-y-3">
+      {isAddingService && (
+        <div className="border border-border rounded-xl p-6 bg-surface">
+          <h4 className="font-semibold text-text-900 mb-4">Add New Service</h4>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-700 mb-2">Service Title</label>
               <input
                 type="text"
-                placeholder="Service title"
                 value={newService.title}
                 onChange={(e) => setNewService({ ...newService, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent transition-all bg-surface"
+                placeholder="e.g., Web Design, Consultation"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-700 mb-2">Description</label>
               <textarea
-                placeholder="Service description"
                 value={newService.description}
                 onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                rows={3}
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent transition-all resize-none bg-surface"
+                placeholder="Describe what you offer..."
               />
-              <div className="flex items-center space-x-3">
-                <input
-                  type="text"
-                  placeholder="Price (e.g., $150/hour)"
-                  value={newService.price}
-                  onChange={(e) => setNewService({ ...newService, price: e.target.value })}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                />
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={newService.featured}
-                    onChange={(e) => setNewService({ ...newService, featured: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-600">Featured</span>
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleAddService}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                >
-                  Add Service
-                </button>
-                <button
-                  onClick={() => setIsAddingService(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-700 mb-2">Price</label>
+              <input
+                type="text"
+                value={newService.price}
+                onChange={(e) => setNewService({ ...newService, price: e.target.value })}
+                className="w-full px-4 py-3 border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent transition-all bg-surface"
+                placeholder="e.g., $100/hour, $500/project"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="featured"
+                checked={newService.featured}
+                onChange={(e) => setNewService({ ...newService, featured: e.target.checked })}
+                className="w-4 h-4 text-primary-600 border-border rounded focus:ring-ring"
+              />
+              <label htmlFor="featured" className="text-sm text-text-700">
+                Mark as featured service
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleAddService}
+                className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all"
+              >
+                Add Service
+              </button>
+              <button
+                onClick={() => setIsAddingService(false)}
+                className="px-4 py-2 text-text-700 hover:text-text-900 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

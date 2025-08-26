@@ -37,96 +37,104 @@ const ThemeEditor: React.FC<ThemeEditorProps> = ({ profileData, onUpdate }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
-        <Palette className="w-5 h-5 mr-2 text-blue-600" />
-        Theme & Colors
-      </h3>
-      
-      <div className="space-y-6">
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Preset Themes</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {presetThemes.map((theme) => (
-              <button
-                key={theme.name}
-                onClick={() => handleThemeChange(theme)}
-                className="group p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-all text-left"
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="flex space-x-1">
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: theme.primary }}
-                    />
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: theme.secondary }}
-                    />
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: theme.accent }}
-                    />
-                  </div>
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-sm font-medium text-text-700 mb-3">Preset Themes</h4>
+        <div className="grid grid-cols-2 gap-3">
+          {presetThemes.map((theme) => (
+            <button
+              key={theme.name}
+              onClick={() => handleThemeChange(theme)}
+              className="group p-3 border border-border rounded-xl hover:border-primary-300 transition-all text-left bg-surface"
+            >
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="flex space-x-1">
+                  <div 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: theme.primary }}
+                  />
+                  <div 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: theme.secondary }}
+                  />
+                  <div 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: theme.accent }}
+                  />
                 </div>
-                <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {theme.name}
-                </p>
-              </button>
-            ))}
+              </div>
+              <p className="text-sm font-medium text-text-900 group-hover:text-primary-600 transition-colors">
+                {theme.name}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-medium text-text-700 mb-3">Custom Colors</h4>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-3">
+            <label className="text-sm text-text-600 w-20">Primary</label>
+            <input
+              type="color"
+              value={profileData.theme.primary}
+              onChange={(e) => handleCustomColorChange('primary', e.target.value)}
+              className="w-12 h-8 border border-border rounded-xl cursor-pointer"
+            />
+            <input
+              type="text"
+              value={profileData.theme.primary}
+              onChange={(e) => handleCustomColorChange('primary', e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent bg-surface"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <label className="text-sm text-text-600 w-20">Secondary</label>
+            <input
+              type="color"
+              value={profileData.theme.secondary}
+              onChange={(e) => handleCustomColorChange('secondary', e.target.value)}
+              className="w-12 h-8 border border-border rounded-xl cursor-pointer"
+            />
+            <input
+              type="text"
+              value={profileData.theme.secondary}
+              onChange={(e) => handleCustomColorChange('secondary', e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent bg-surface"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <label className="text-sm text-text-600 w-20">Accent</label>
+            <input
+              type="color"
+              value={profileData.theme.accent}
+              onChange={(e) => handleCustomColorChange('accent', e.target.value)}
+              className="w-12 h-8 border border-border rounded-xl cursor-pointer"
+            />
+            <input
+              type="text"
+              value={profileData.theme.accent}
+              onChange={(e) => handleCustomColorChange('accent', e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-border rounded-xl focus:ring-4 focus:ring-ring focus:border-transparent bg-surface"
+            />
           </div>
         </div>
+      </div>
 
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-3">Custom Colors</h4>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <label className="text-sm text-gray-600 w-20">Primary</label>
-              <input
-                type="color"
-                value={profileData.theme.primary}
-                onChange={(e) => handleCustomColorChange('primary', e.target.value)}
-                className="w-12 h-8 border border-gray-200 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={profileData.theme.primary}
-                onChange={(e) => handleCustomColorChange('primary', e.target.value)}
-                className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <label className="text-sm text-gray-600 w-20">Secondary</label>
-              <input
-                type="color"
-                value={profileData.theme.secondary}
-                onChange={(e) => handleCustomColorChange('secondary', e.target.value)}
-                className="w-12 h-8 border border-gray-200 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={profileData.theme.secondary}
-                onChange={(e) => handleCustomColorChange('secondary', e.target.value)}
-                className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <label className="text-sm text-gray-600 w-20">Accent</label>
-              <input
-                type="color"
-                value={profileData.theme.accent}
-                onChange={(e) => handleCustomColorChange('accent', e.target.value)}
-                className="w-12 h-8 border border-gray-200 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={profileData.theme.accent}
-                onChange={(e) => handleCustomColorChange('accent', e.target.value)}
-                className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+      <div className="p-4 border border-border rounded-xl bg-surface">
+        <h4 className="text-sm font-medium text-text-700 mb-3">Preview</h4>
+        <div 
+          className="h-16 rounded-xl relative"
+          style={{
+            background: `linear-gradient(135deg, ${profileData.theme.primary}, ${profileData.theme.secondary})`
+          }}
+        >
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-white text-sm font-medium">Your Profile Header</div>
           </div>
         </div>
       </div>
