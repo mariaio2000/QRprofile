@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import ProfileEditor from './components/ProfileEditor';
-import ProfilePreview from './components/ProfilePreview';
-import QRCodeGenerator from './components/QRCodeGenerator';
+import PreviewSummary, { type Profile as PreviewProfile } from './components/PreviewSummary';
+import QrCodeTab, { type Profile as QrProfile } from './components/QrCodeTab';
 import Navigation from './components/Navigation';
 import PublicProfile from './components/PublicProfile';
 import { ProfileData } from './types/profile';
@@ -224,11 +224,44 @@ function App() {
             )}
             
             {currentView === 'preview' && (
-              <ProfilePreview profileData={profileData} />
+              <PreviewSummary profile={{
+                username: profile?.username || 'user',
+                name: profileData.name || '',
+                title: profileData.title,
+                company: profileData.company,
+                email: profileData.email,
+                phone: profileData.phone,
+                website: profileData.socialLinks?.website,
+                address: profileData.location,
+                avatarUrl: profileData.profileImage,
+                socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
+                  .filter(([_, url]) => url)
+                  .map(([platform, url]) => ({
+                    label: platform.charAt(0).toUpperCase() + platform.slice(1),
+                    url: url as string
+                  })) : [],
+                bio: profileData.bio
+              }} />
             )}
             
             {currentView === 'qr' && (
-              <QRCodeGenerator profileData={profileData} />
+              <QrCodeTab profile={{
+                username: profile?.username || 'user',
+                name: profileData.name || '',
+                title: profileData.title,
+                company: profileData.company,
+                email: profileData.email,
+                phone: profileData.phone,
+                website: profileData.socialLinks?.website,
+                address: profileData.location,
+                avatarUrl: profileData.profileImage,
+                socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
+                  .filter(([_, url]) => url)
+                  .map(([platform, url]) => ({
+                    label: platform.charAt(0).toUpperCase() + platform.slice(1),
+                    url: url as string
+                  })) : []
+              }} />
             )}
           </>
         )}

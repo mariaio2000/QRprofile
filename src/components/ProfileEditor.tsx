@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { ChevronLeft, ChevronRight, Mail, Copy, QrCode } from 'lucide-react';
 import QrCreator from "./QrCreator";
+import { toPngDataURL, toSvgString, downloadDataUrl, downloadSvg } from "../lib/qr";
 
 interface PhotoWidget {
   id: string;
@@ -180,10 +181,70 @@ function WizardHeader({ currentStep }: { currentStep: number }) {
 }
 
 // ---------- Preview Card ----------
-function PhonePreview({ profile }: { profile: ProfileData & { photoWidgets?: PhotoWidget[] } }) {
+function PhonePreview({ profile, username }: { profile: ProfileData & { photoWidgets?: PhotoWidget[] }; username?: string }) {
   const { name, title, email, profileImage, theme } = profile;
   const gradientFrom = theme?.primary || "#6366F1";
   const gradientTo = theme?.secondary || "#8B5CF6";
+  
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "https://qrprofile.com";
+  const profileUrl = (username?.trim())
+    ? `${origin}/u/${encodeURIComponent(username)}`
+    : origin;
+
+  const [downloading, setDownloading] = useState(false);
+
+  // Optional fallback for VS Code Simple Browser (opens in new tab)
+  function forceDownload(urlOrData: string, filename: string) {
+    const a = document.createElement("a");
+    a.href = urlOrData;
+    a.download = filename;
+    a.rel = "noopener";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function handleDownload(format: "png" | "svg" = "png") {
+    try {
+      setDownloading(true);
+      if (format === "png") {
+        const png = await toPngDataURL(profileUrl, {
+          size: 2048,       // crisp for print
+          margin: 3,
+          ecc: "Q",
+          dark: "#1F2937",
+          light: "#FFFFFF",
+        });
+        // try normal download; if your embedded browser blocks it, fall back:
+        try {
+          downloadDataUrl(png, `${username || "qr"}.png`);
+        } catch {
+          forceDownload(png, `${username || "qr"}.png`);
+        }
+      } else {
+        const svg = await toSvgString(profileUrl, {
+          size: 1024,
+          margin: 3,
+          ecc: "Q",
+          dark: "#1F2937",
+          light: "#FFFFFF",
+        });
+        try {
+          downloadSvg(svg, `${username || "qr"}.svg`);
+        } catch {
+          // build a blob URL for the fallback
+          const blob = new Blob([svg], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          forceDownload(url, `${username || "qr"}.svg`);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+      }
+    } finally {
+      setDownloading(false);
+    }
+  }
   
   return (
     <div className="sticky top-6">
@@ -215,14 +276,27 @@ function PhonePreview({ profile }: { profile: ProfileData & { photoWidgets?: Pho
               <span>{email}</span>
             </div>
           )}
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-3 gap-2">
             <Button variant="secondary" className="text-xs">
               <Copy className="h-3 w-3" />
               Copy Link
             </Button>
-            <Button className="text-xs">
+            <Button 
+              onClick={() => handleDownload("png")}
+              disabled={downloading}
+              className="text-xs"
+            >
               <QrCode className="h-3 w-3" />
-              Download QR
+              PNG
+            </Button>
+            <Button 
+              onClick={() => handleDownload("svg")}
+              disabled={downloading}
+              variant="secondary"
+              className="text-xs"
+            >
+              <QrCode className="h-3 w-3" />
+              SVG
             </Button>
           </div>
         </div>
@@ -776,6 +850,10 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({ profileData, onUpdate }) 
     title: profileData.title || "",
     email: profileData.email || "",
     bio: profileData.bio || "",
+    phone: profileData.phone || "",
+    location: profileData.location || "",
+    socialLinks: profileData.socialLinks || {},
+    services: profileData.services || [],
     profileImage: profileData.profileImage || "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=400&auto=format&fit=crop",
     gradientFrom: profileData.theme?.primary || "#6366F1",
     gradientTo: profileData.theme?.secondary || "#8B5CF6",
@@ -789,6 +867,10 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({ profileData, onUpdate }) 
     if (updates.title !== undefined) profileUpdates.title = updates.title;
     if (updates.email !== undefined) profileUpdates.email = updates.email;
     if (updates.bio !== undefined) profileUpdates.bio = updates.bio;
+    if (updates.phone !== undefined) profileUpdates.phone = updates.phone;
+    if (updates.location !== undefined) profileUpdates.location = updates.location;
+    if (updates.socialLinks !== undefined) profileUpdates.socialLinks = updates.socialLinks;
+    if (updates.services !== undefined) profileUpdates.services = updates.services;
     if (updates.profileImage !== undefined) profileUpdates.profileImage = updates.profileImage;
     if (updates.gradientFrom !== undefined || updates.gradientTo !== undefined) {
       profileUpdates.theme = {
@@ -884,7 +966,7 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({ profileData, onUpdate }) 
               <h2 className="text-base font-semibold">Live preview</h2>
               <span className="text-xs text-gray-500">Updates in real time</span>
             </div>
-            <PhonePreview profile={profileData} />
+            <PhonePreview profile={profileData} username={wizardProfile.username} />
           </div>
 
           {/* QR Code (instant) */}

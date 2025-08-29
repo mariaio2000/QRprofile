@@ -1,237 +1,195 @@
-import React from 'react';
-import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
-const STEPS = [
-  {
-    id: 1,
-    title: "Create Your Profile",
-    description: "Upload your photo, add details, customize your professional presence."
-  },
-  {
-    id: 2,
-    title: "Share Your QR",
-    description: "Display it anywhere — cards, presentations, signatures, social."
-  },
-  {
-    id: 3,
-    title: "Connect & Follow Up",
-    description: "People scan, open your profile instantly, and you stay connected."
-  }
-];
+/**
+ * HowItWorks (Modern)
+ * - Smooth scroll-driven, spring-smoothed progress
+ * - Sequential step fills (01 -> 02 -> 03) with gentle overlap
+ * - Gradient ring + glow + glass cards
+ */
 
 export default function HowItWorks() {
-  const containerRef = useRef<HTMLElement>(null);
-  const stepRefs = useRef<(HTMLElement | null)[]>([]);
-  const [activeStep, setActiveStep] = React.useState(1);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Track which step is in view
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-            const stepId = parseInt(entry.target.getAttribute('data-step') || '1');
-            setActiveStep(stepId);
-          }
-        });
-      },
-      { threshold: 0.5 }
-    );
+  // target (raw) progress & smoothed (spring) progress, both 0..1
+  const [targetP, setTargetP] = useState(0);
+  const [p, setP] = useState(0);
 
-    stepRefs.current.forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
 
-    return () => observer.disconnect();
-  }, []);
+    const onScrollOrResize = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
 
-  const getStepState = (stepId: number) => {
-    if (stepId < activeStep) return 'completed';
-    if (stepId === activeStep) return 'current';
-    return 'inactive';
+      // Start a bit earlier and finish before fully leaving
+      const startOffset = vh * 0.8;  // lower -> starts earlier
+      const endExtra = vh * 0.35;    // higher -> finishes sooner
+      const total = rect.height + endExtra;
+      const scrolled = Math.min(Math.max(startOffset - rect.top, 0), total);
+      const t = total > 0 ? scrolled / total : 0;
+      setTargetP(Math.max(0, Math.min(1, t)));
+    };
+
+    const tick = () => {
+      const now = performance.now();
+      const dt = (now - last) / 1000; // seconds
+      last = now;
+      // critically-damped spring toward targetP
+      const lambda = 6; // increase for tighter/faster smoothing
+      const alpha = 1 - Math.exp(-lambda * dt);
+      setP((prev) => prev + (targetP - prev) * alpha);
+      raf = requestAnimationFrame(tick);
+    };
+
+    onScrollOrResize();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [targetP]);
+
+  // Segment mapping: take section progress p (0..1) and return per-step progress 0..1.
+  const seg = (p: number, start: number, end: number) => {
+    const x = Math.max(0, Math.min(1, (p - start) / (end - start)));
+    return easeInOutCubic(x);
   };
 
+  // Tuned so each step starts a bit before the previous fully finishes
+  const p1 = seg(p, 0.00, 0.46);
+  const p2 = seg(p, 0.28, 0.78);
+  const p3 = seg(p, 0.56, 1.00);
+
   return (
-    <section ref={containerRef} className="relative py-16 sm:py-20 bg-background/80 backdrop-blur">
-      <div className="container mx-auto px-6">
-        <motion.h2 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-3xl sm:text-4xl font-extrabold text-center text-foreground mb-6"
-        >
-          How it <span className="text-primary-600">works</span>
-        </motion.h2>
-        
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="mt-3 text-center text-muted-foreground"
-        >
-          Three simple steps to transform how you connect.
-        </motion.p>
+    <section ref={rootRef} id="how-it-works" className="mx-auto max-w-6xl px-4 py-20">
+      <h2 className="text-center text-4xl font-semibold">
+        How it <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 bg-clip-text text-transparent">works</span>
+      </h2>
+      <p className="mt-3 text-center text-gray-500">
+        Three simple steps to transform how you connect.
+      </p>
 
-                {/* Timeline */}
-        <div className="relative mt-16">
-          {/* Desktop: Horizontal timeline */}
-          <div className="hidden md:block relative mx-auto max-w-6xl">
-            {/* Inactive rail */}
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-muted/30 rounded" />
-
-            {/* Active fill (animate width to the current step center) */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2 h-[2px] rounded bg-gradient-to-r from-violet-500 to-sky-400"
-              animate={{ width: ['16.66%', '50%', '83.33%'][activeStep - 1] || '0%' }}
-              transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-            />
-
-            {/* MASK CAPS – hide the rail under badges so line never enters the circles */}
-            {['16.66%','50%','83.33%'].map((left, i) => (
-              <span
-                key={i}
-                aria-hidden
-                className="absolute top-1/2 z-10 -translate-y-1/2 -translate-x-1/2 rounded-full"
-                style={{
-                  left,
-                  // slightly larger than the badge so the rail can't peek out
-                  width: '54px',
-                  height: '54px',
-                  // match your section background so it visually "cuts" the line
-                  background: 'var(--background, #fff)',
-                  // soft blur edge so the cut blends on gradients
-                  boxShadow: '0 0 0 1px rgba(0,0,0,0.04)',
-                }}
-              />
-            ))}
-
-            {/* STEP BADGES (render these AFTER the caps so they sit above) */}
-            <div className="relative z-20 grid grid-cols-3">
-              {STEPS.map((step, i) => (
-                <div key={step.id} className="flex flex-col items-center">
-                  <div
-                    className={[
-                      'h-12 w-12 rounded-full flex items-center justify-center font-bold transition-all duration-300',
-                      i === activeStep - 1
-                        ? 'bg-gradient-to-r from-violet-500 to-sky-400 text-white shadow-lg scale-105'
-                        : i < activeStep - 1
-                        ? 'bg-gradient-to-r from-violet-500 to-sky-400/80 text-white'
-                        : 'bg-background border border-muted text-muted-foreground'
-                    ].join(' ')}
-                    aria-current={i === activeStep - 1 ? 'step' : undefined}
-                  >
-                    {step.id.toString().padStart(2, '0')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile: Vertical timeline */}
-          <div className="md:hidden relative mx-auto max-w-sm">
-            {/* Inactive rail */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-muted/30 rounded -translate-x-1/2" />
-
-            {/* Active fill */}
-            <motion.div
-              className="absolute left-1/2 top-0 w-[2px] rounded bg-gradient-to-b from-violet-500 to-sky-400 -translate-x-1/2"
-              animate={{ height: ['16.66%', '50%', '83.33%'][activeStep - 1] || '0%' }}
-              transition={{ type: 'spring', stiffness: 220, damping: 28 }}
-            />
-
-            {/* MASK CAPS for mobile */}
-            {['16.66%','50%','83.33%'].map((top, i) => (
-              <span
-                key={i}
-                aria-hidden
-                className="absolute left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{
-                  top,
-                  width: '54px',
-                  height: '54px',
-                  background: 'var(--background, #fff)',
-                  boxShadow: '0 0 0 1px rgba(0,0,0,0.04)',
-                }}
-              />
-            ))}
-
-            {/* STEP BADGES for mobile */}
-            <div className="relative z-20 grid grid-rows-3 gap-8">
-              {STEPS.map((step, i) => (
-                <div key={step.id} className="flex items-center">
-                  <div
-                    className={[
-                      'h-12 w-12 rounded-full flex items-center justify-center font-bold transition-all duration-300',
-                      i === activeStep - 1
-                        ? 'bg-gradient-to-r from-violet-500 to-sky-400 text-white shadow-lg scale-105'
-                        : i < activeStep - 1
-                        ? 'bg-gradient-to-r from-violet-500 to-sky-400/80 text-white'
-                        : 'bg-background border border-muted text-muted-foreground'
-                    ].join(' ')}
-                    aria-current={i === activeStep - 1 ? 'step' : undefined}
-                  >
-                    {step.id.toString().padStart(2, '0')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Steps Content */}
-          <div 
-            role="list" 
-            className="mt-12 grid gap-8 md:grid-cols-3 md:gap-12"
-          >
-            {STEPS.map((step, index) => {
-              const stepRef = useRef<HTMLElement>(null);
-              
-              // Store ref for intersection observer
-              React.useEffect(() => {
-                stepRefs.current[index] = stepRef.current;
-              }, [index]);
-
-              return (
-                <motion.div
-                  key={step.id}
-                  ref={stepRef}
-                  data-step={step.id}
-                  role="listitem"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                  className="relative text-center md:text-left"
-                >
-                  {/* Content */}
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-bold text-foreground">{step.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{step.description}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* CTA - Only show under Step 3 */}
-          {activeStep === 3 && (
-            <motion.div 
-              className="mt-12 text-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <button className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg bg-primary-600 text-white hover:shadow-lg hover:scale-105 transition-all duration-300">
-                Start Building Your Profile
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            </motion.div>
-          )}
-        </div>
+      <div className="mt-14 grid gap-12 md:grid-cols-3">
+        <Step index="01" title="Create Your Profile" progress={p1}>
+          Upload your photo, add details, and customize your professional presence.
+        </Step>
+        <Step index="02" title="Share Your QR" progress={p2}>
+          Display it anywhere — cards, presentations, signatures, social.
+        </Step>
+        <Step index="03" title="Connect &amp; Follow Up" progress={p3}>
+          People scan, open your profile instantly, and you stay connected.
+        </Step>
       </div>
     </section>
   );
+}
+
+function Step({
+  index,
+  title,
+  progress, // 0..1
+  children,
+}: {
+  index: string;
+  title: string;
+  progress: number;
+  children: React.ReactNode;
+}) {
+  const clamped = Math.max(0, Math.min(1, progress));
+  const deg = `${clamped * 360}deg`;
+
+  // Brand gradient (matches your site's vibe)
+  const GRAD =
+    "conic-gradient(from 0deg, #6366f1, #8b5cf6, #06b6d4, #60a5fa, #6366f1)";
+
+  return (
+    <div className="group">
+      {/* Ring wrapper */}
+      <div className="relative mx-auto flex h-[78px] w-[78px] items-center justify-center">
+        {/* Glow */}
+        <div
+          className="absolute inset-0 rounded-full blur-md opacity-40 transition-opacity duration-300"
+          style={{
+            background: GRAD,
+            mask: "radial-gradient(circle at center, transparent 54%, black 56%)",
+            WebkitMask:
+              "radial-gradient(circle at center, transparent 54%, black 56%)",
+            opacity: clamped > 0 ? 0.45 : 0.2,
+          }}
+        />
+        {/* Track */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: "#e5e7eb",
+            mask: "radial-gradient(circle at center, transparent 54%, black 56%)",
+            WebkitMask:
+              "radial-gradient(circle at center, transparent 54%, black 56%)",
+          }}
+        />
+        {/* Fill */}
+        <div
+          className="absolute inset-0 rounded-full will-change-transform"
+          style={{
+            background: `conic-gradient(#0000 0deg, #0000 ${deg}, #0000 360deg)`,
+            WebkitMask:
+              "radial-gradient(circle at center, black 54%, transparent 56%)",
+            mask: "radial-gradient(circle at center, black 54%, transparent 56%)",
+            // we paint the gradient underneath and reveal with the conic mask
+          }}
+        />
+        {/* Gradient underlay (revealed by mask above) */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: GRAD,
+            mask: `conic-gradient(#000 ${deg}, #0000 0)`,
+            WebkitMask: `conic-gradient(#000 ${deg}, #0000 0)`,
+          }}
+        />
+
+        {/* Center badge */}
+        <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-lg font-semibold text-gray-800 shadow-inner ring-1 ring-gray-200">
+          {index}
+        </div>
+      </div>
+
+      {/* Line (brand gradient) */}
+      <div className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+        <div
+          className="h-full origin-left rounded-full"
+          style={{
+            transform: `scaleX(${clamped})`,
+            background:
+              "linear-gradient(90deg, #6366f1 0%, #8b5cf6 35%, #06b6d4 70%, #60a5fa 100%)",
+            transition: "transform 140ms ease-out",
+          }}
+        />
+      </div>
+
+      {/* Card */}
+      <div
+        className={`mt-6 rounded-2xl border border-white/50 bg-white/70 p-6 shadow-sm backdrop-blur transition-all duration-300 ${
+          clamped > 0.98 ? "shadow-md ring-1 ring-indigo-200" : ""
+        }`}
+      >
+        <h3 className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text font-semibold text-transparent">
+          {title}
+        </h3>
+        <p className="mt-2 text-sm text-gray-600">{children}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Easing ---------- */
+function easeInOutCubic(x: number) {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
