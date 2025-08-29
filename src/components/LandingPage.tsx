@@ -233,9 +233,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, user, onNavigateT
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 text-center text-sm text-text-700">
-                  Professional QR profiles for everyone
-                </div>
               </div>
             </div>
 

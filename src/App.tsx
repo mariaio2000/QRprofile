@@ -1,13 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import LandingPage from './components/LandingPage';
-import ProfileEditor from './components/ProfileEditor';
-import PreviewSummary, { type Profile as PreviewProfile } from './components/PreviewSummary';
-import QrCodeTab, { type Profile as QrProfile } from './components/QrCodeTab';
-import Navigation from './components/Navigation';
-import PublicProfile from './components/PublicProfile';
-import { ProfileData } from './types/profile';
-import { useAuth } from './hooks/useAuth';
-import { useProfile } from './hooks/useProfile';
+import React, { useState, useEffect, useCallback } from 'react';
+import LandingPage from '@/components/LandingPage';
+import ProfileEditor, { type Profile } from '@/components/ProfileEditor';
+import PreviewSummary, { type Profile as PreviewProfile } from '@/components/PreviewSummary';
+import QrCodeTab, { type Profile as QrProfile } from '@/components/QrCodeTab';
+import Navigation from '@/components/Navigation';
+import PublicProfile from '@/components/PublicProfile';
+import { ProfileData } from '@/types/profile';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+
+function toEditorModel(profileData: any): Profile {
+  return {
+    fullName: profileData.name ?? "",
+    title: profileData.title ?? "",
+    bio: profileData.bio ?? "",
+    avatarUrl: profileData.profileImage ?? profileData.avatarUrl ?? "",
+
+    phone: profileData.phone ?? "",
+    location: profileData.location ?? "",
+    website: profileData.socialLinks?.website ?? profileData.website ?? "",
+
+    socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
+      .filter(([_, url]) => url)
+      .map(([platform, url]) => ({
+        label: platform.charAt(0).toUpperCase() + platform.slice(1),
+        url: url as string
+      })) : [],
+    services: profileData.services ?? [],
+    photos: profileData.photos ?? [],
+
+    themeFrom: profileData.theme?.primary ?? "#4F46E5",
+    themeTo: profileData.theme?.secondary ?? "#6366F1",
+  };
+}
 
 interface PhotoWidget {
   id: string;
@@ -131,6 +156,32 @@ function App() {
     }
   };
 
+  // Auto-save callback for ProfileEditor
+  const handleAutoSave = useCallback(async (profile: Profile) => {
+    const updateData = {
+      name: profile.fullName,
+      title: profile.title,
+      bio: profile.bio,
+      profileImage: profile.avatarUrl,
+      phone: profile.phone,
+      location: profile.location,
+      website: profile.website,
+      socialLinks: profile.socials.reduce((acc, social) => {
+        acc[social.label.toLowerCase()] = social.url;
+        return acc;
+      }, {} as Record<string, string>),
+      services: profile.services,
+      photos: profile.photos,
+      theme: {
+        primary: profile.themeFrom,
+        secondary: profile.themeTo,
+        accent: profile.themeTo
+      }
+    };
+    
+    await handleProfileUpdate(updateData);
+  }, [handleProfileUpdate]);
+
   const handleBackToHome = () => {
     setPublicUsername(null);
     window.history.pushState({}, '', '/');
@@ -218,8 +269,10 @@ function App() {
           <>
             {currentView === 'edit' && (
               <ProfileEditor 
-                profileData={profileData} 
-                onUpdate={handleProfileUpdate}
+                initialProfile={toEditorModel(profileData)}
+                onAutoSave={handleAutoSave}
+                onBack={() => setCurrentView('preview')}
+                onFinish={() => setCurrentView('qr')}
               />
             )}
             

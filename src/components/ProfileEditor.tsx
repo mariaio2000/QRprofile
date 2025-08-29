@@ -1,303 +1,248 @@
-import React, { useMemo, useState } from "react";
-import { ProfileData } from '../types/profile';
-import { useAuth } from '../hooks/useAuth';
-import { useProfile } from '../hooks/useProfile';
-import { ChevronLeft, ChevronRight, Mail, Copy, QrCode } from 'lucide-react';
-import QrCreator from "./QrCreator";
-import { toPngDataURL, toSvgString, downloadDataUrl, downloadSvg } from "../lib/qr";
+import React, { useMemo, useState, useEffect } from "react";
+import clsx from "clsx";
+import { useAutoSave } from "@/hooks/useAutoSave";
 
-interface PhotoWidget {
-  id: string;
+export type Social = { label: string; url: string };
+export type Profile = {
+  fullName: string;
   title: string;
+  bio: string;
+  avatarUrl?: string;
+
+  phone?: string;
+  location?: string;
+  website?: string;
+  socials: Social[];
+
+  services: string[];
   photos: string[];
-  layout: 'grid' | 'carousel';
-}
 
-interface ProfileEditorProps {
-  profileData: ProfileData & { photoWidgets?: PhotoWidget[] };
-  onUpdate: (data: Partial<ProfileData & { photoWidgets?: PhotoWidget[] }>) => void;
-}
+  themeFrom: string;
+  themeTo: string;
+};
 
-// ---------- Utilities ----------
-const classNames = (...c: (string | boolean | undefined)[]) => c.filter(Boolean).join(" ");
+type Props = {
+  initialProfile?: Partial<Profile>;
+  onAutoSave: (p: Profile) => Promise<void> | void; // called automatically (debounced)
+  onBack?: () => void;
+  onFinish: () => void; // just navigate to QR
+};
 
-// ---------- Types ----------
+const DEFAULT_AVATAR =
+  `data:image/svg+xml;utf8,` +
+  encodeURIComponent(`
+  <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#6366F1" offset="0"/><stop stop-color="#4F46E5" offset="1"/>
+    </linearGradient></defs>
+    <rect width="128" height="128" rx="64" fill="url(#g)"/>
+    <circle cx="64" cy="50" r="22" fill="#FFF" opacity="0.9"/>
+    <rect x="24" y="78" width="80" height="30" rx="15" fill="#FFF" opacity="0.9"/>
+  </svg>
+`);
+
+const EMPTY: Profile = {
+  fullName: "",
+  title: "",
+  bio: "",
+  avatarUrl: "",
+  phone: "",
+  location: "",
+  website: "",
+  socials: [],
+  services: [],
+  photos: [],
+  themeFrom: "#4F46E5",
+  themeTo: "#6366F1",
+};
+
 const STEPS = [
-  { id: 1, key: "basic", label: "Basic Info" },
-  { id: 2, key: "username", label: "Username" },
-  { id: 3, key: "title", label: "Bio & Title" },
-  { id: 4, key: "contact", label: "Contact" },
-  { id: 5, key: "social", label: "Social" },
-  { id: 6, key: "services", label: "Services" },
-  { id: 7, key: "photos", label: "Photos" },
-  { id: 8, key: "theme", label: "Theme" },
-];
+  { key: "basic", label: "Basic Info" },
+  { key: "contact", label: "Contact & Links" },
+  { key: "media", label: "Services & Media" },
+  { key: "theme", label: "Theme & Preview" },
+] as const;
 
-// ---------- Small UI Primitives ----------
-function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFinish }: Props) {
+  const [profile, setProfile] = useState<Profile>(() => ({
+    ...EMPTY,
+    ...initialProfile,
+    socials: initialProfile?.socials ?? [],
+    services: initialProfile?.services ?? [],
+    photos: initialProfile?.photos ?? [],
+  }));
+  const [stepIndex, setStepIndex] = useState(0);
+  const [avatarError, setAvatarError] = useState(false);
+  const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
+
+  useAutoSave(profile, async (p) => {
+    try {
+      setSaving("saving");
+      await onAutoSave(p);   // delegate to App for DB update
+      setSaving("saved");
+      setTimeout(() => setSaving("idle"), 900);
+    } catch {
+      setSaving("idle");
+    }
+  }, 600);
+
+  // Optional localStorage autosave
+  const LS_KEY = "qrp.editor";
+  useEffect(() => {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw);
+        setProfile((p) => ({ ...p, ...saved }));
+      } catch {}
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify(profile));
+  }, [profile]);
+
+  const canContinue = useMemo(() => {
+    if (stepIndex === 0) return profile.fullName.trim().length > 1; // only name required
+    return true;
+  }, [profile.fullName, stepIndex]);
+
+  function next() {
+    if (stepIndex < STEPS.length - 1) setStepIndex((i) => i + 1);
+  }
+  function back() {
+    if (stepIndex > 0) setStepIndex((i) => i - 1);
+    else if (onBack) onBack();
+    else if (window.history.length > 1) window.history.back();
+  }
+
+
+  // Keyboard shortcuts: Alt+→ (next/publish), Alt+← (back)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      if (e.key === "ArrowRight") {
+        if (stepIndex === STEPS.length - 1) onFinish();
+        else if (canContinue) next();
+      } else if (e.key === "ArrowLeft") {
+        back();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIndex, canContinue, profile]);
+
+  const displayAvatar =
+    avatarError || !profile.avatarUrl?.trim() ? DEFAULT_AVATAR : profile.avatarUrl!.trim();
+
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-      {children}
-    </label>
-  );
-}
-
-function Helper({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{children}</p>;
-}
-
-function Input({ 
-  id, 
-  type = "text", 
-  value, 
-  onChange, 
-  placeholder, 
-  required, 
-  ariaInvalid, 
-  ...rest 
-}: {
-  id: string;
-  type?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  required?: boolean;
-  ariaInvalid?: boolean;
-  [key: string]: any;
-}) {
-  return (
-    <input
-      id={id}
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      required={required}
-      aria-invalid={ariaInvalid}
-      className={classNames(
-        "mt-1 w-full rounded-xl border bg-white/80 dark:bg-gray-800/80",
-        "border-gray-300 dark:border-gray-700",
-        "px-4 py-3 text-sm text-gray-900 dark:text-gray-100",
-        "placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      )}
-      {...rest}
-    />
-  );
-}
-
-function Textarea({ 
-  id, 
-  value, 
-  onChange, 
-  placeholder, 
-  rows = 3 
-}: {
-  id: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  placeholder?: string;
-  rows?: number;
-}) {
-  return (
-    <textarea
-      id={id}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={rows}
-      className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    />
-  );
-}
-
-function Button({ 
-  variant = "primary", 
-  className, 
-  children,
-  ...props 
-}: {
-  variant?: "primary" | "secondary" | "ghost";
-  className?: string;
-  children: React.ReactNode;
-  [key: string]: any;
-}) {
-  const styles =
-    variant === "primary"
-      ? "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
-      : variant === "secondary"
-      ? "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-      : "text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white";
-  return (
-    <button
-      className={classNames(
-        "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2",
-        styles,
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ---------- Progress Header ----------
-function WizardHeader({ currentStep }: { currentStep: number }) {
-  const pct = Math.round((currentStep / STEPS.length) * 100);
-  return (
-    <div className="sticky top-0 z-10 -mx-6 mb-6 border-b border-gray-200 bg-white/70 backdrop-blur dark:bg-gray-900/70 dark:border-gray-800 px-6 py-4">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Step {currentStep} of {STEPS.length}
+    <div className="relative mx-auto max-w-7xl px-4 pb-24 pt-10">
+      {/* Progress */}
+      <div className="mb-6">
+        <div className="text-sm font-medium text-gray-500">
+          Step {stepIndex + 1} of {STEPS.length}
         </div>
-        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pct}%</div>
+        <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
+          <div
+            className="h-2 rounded-full bg-indigo-500 transition-all"
+            style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }}
+          />
+        </div>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-        <div 
-          style={{ width: `${pct}%` }} 
-          className="h-full rounded-full bg-indigo-600 transition-all" 
-        />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+
+      {/* Pills */}
+      <div className="mb-6 flex flex-wrap gap-2">
         {STEPS.map((s, i) => (
-          <div key={s.id} className={classNames(
-            "flex items-center gap-2 rounded-full px-3 py-1 text-xs",
-            i + 1 <= currentStep 
-              ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200" 
-              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-          )}>
-            <span 
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold"
-              aria-hidden
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => setStepIndex(i)}
+            className={clsx(
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm",
+              i === stepIndex
+                ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            )}
+          >
+            <span
+              className={clsx(
+                "grid h-5 w-5 place-items-center rounded-full text-xs",
+                i === stepIndex ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700"
+              )}
             >
-              {s.id}
+              {i + 1}
             </span>
             {s.label}
-          </div>
+          </button>
         ))}
       </div>
-    </div>
-  );
-}
 
-// ---------- Preview Card ----------
-function PhonePreview({ profile, username }: { profile: ProfileData & { photoWidgets?: PhotoWidget[] }; username?: string }) {
-  const { name, title, email, profileImage, theme } = profile;
-  const gradientFrom = theme?.primary || "#6366F1";
-  const gradientTo = theme?.secondary || "#8B5CF6";
-  
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "https://qrprofile.com";
-  const profileUrl = (username?.trim())
-    ? `${origin}/u/${encodeURIComponent(username)}`
-    : origin;
+      {/* Content grid */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* LEFT: form */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          {stepIndex === 0 && <StepBasic profile={profile} onChange={setProfile} />}
+          {stepIndex === 1 && <StepContact profile={profile} onChange={setProfile} />}
+          {stepIndex === 2 && <StepMedia profile={profile} onChange={setProfile} />}
+          {stepIndex === 3 && <StepTheme profile={profile} onChange={setProfile} />}
+        </div>
 
-  const [downloading, setDownloading] = useState(false);
+        {/* RIGHT: Preview */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+          <div className="mb-3 text-lg font-semibold text-gray-800">
+            Live preview <span className="text-sm font-normal text-gray-500">Updates in real time</span>
+          </div>
+          <div className="rounded-xl border border-gray-100 p-6 shadow-sm">
+            <div
+              className="flex h-40 items-center justify-center rounded-md"
+              style={{
+                background: `linear-gradient(90deg, ${profile.themeFrom}, ${profile.themeTo})`,
+              }}
+            >
+              <img
+                src={displayAvatar}
+                onError={() => setAvatarError(true)}
+                alt="Profile photo"
+                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow"
+              />
+            </div>
+            <div className="px-4 py-5 text-center">
+              <div className="text-xl font-semibold text-gray-900">{profile.fullName || "Your Name"}</div>
+              <div className="text-sm text-gray-500">{profile.title || "Your Title"}</div>
+              <p className="mt-3 text-sm text-gray-600">{profile.bio || "Short bio goes here."}</p>
 
-  // Optional fallback for VS Code Simple Browser (opens in new tab)
-  function forceDownload(urlOrData: string, filename: string) {
-    const a = document.createElement("a");
-    a.href = urlOrData;
-    a.download = filename;
-    a.rel = "noopener";
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
 
-  async function handleDownload(format: "png" | "svg" = "png") {
-    try {
-      setDownloading(true);
-      if (format === "png") {
-        const png = await toPngDataURL(profileUrl, {
-          size: 2048,       // crisp for print
-          margin: 3,
-          ecc: "Q",
-          dark: "#1F2937",
-          light: "#FFFFFF",
-        });
-        // try normal download; if your embedded browser blocks it, fall back:
-        try {
-          downloadDataUrl(png, `${username || "qr"}.png`);
-        } catch {
-          forceDownload(png, `${username || "qr"}.png`);
-        }
-      } else {
-        const svg = await toSvgString(profileUrl, {
-          size: 1024,
-          margin: 3,
-          ecc: "Q",
-          dark: "#1F2937",
-          light: "#FFFFFF",
-        });
-        try {
-          downloadSvg(svg, `${username || "qr"}.svg`);
-        } catch {
-          // build a blob URL for the fallback
-          const blob = new Blob([svg], { type: "image/svg+xml" });
-          const url = URL.createObjectURL(blob);
-          forceDownload(url, `${username || "qr"}.svg`);
-          setTimeout(() => URL.revokeObjectURL(url), 1500);
-        }
-      }
-    } finally {
-      setDownloading(false);
-    }
-  }
-  
-  return (
-    <div className="sticky top-6">
-      <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
-        <div 
-          className="rounded-t-[2rem] p-6" 
-          style={{
-            background: `linear-gradient(135deg, ${gradientFrom} 0%, ${gradientTo} 100%)`
-          }}
-        >
-          <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-white dark:ring-gray-900">
-            <img 
-              src={profileImage} 
-              alt="Profile" 
-              className="h-full w-full object-cover" 
-            />
+            </div>
           </div>
         </div>
-        <div className="px-6 pb-8 pt-4">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {name || "Your name"}
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {title || "Your Title"}
-          </p>
-          {email && (
-            <div className="mt-4 flex items-center gap-2 text-sm text-indigo-700 dark:text-indigo-300">
-              <Mail className="h-4 w-4" />
-              <span>{email}</span>
-            </div>
-          )}
-          <div className="mt-6 grid grid-cols-3 gap-2">
-            <Button variant="secondary" className="text-xs">
-              <Copy className="h-3 w-3" />
-              Copy Link
-            </Button>
-            <Button 
-              onClick={() => handleDownload("png")}
-              disabled={downloading}
-              className="text-xs"
+      </div>
+
+      {/* Sticky footer (invisible bar) */}
+      <div className="pointer-events-none sticky bottom-0 z-20 mt-4 w-full">
+        <div className="pointer-events-auto mx-auto flex max-w-6xl items-center justify-between rounded-t-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
+          <div className="text-xs text-gray-500">
+            {saving === "saving" && "Saving…"}
+            {saving === "saved" && "All changes saved"}
+            {saving === "idle" && ""}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onFinish}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
             >
-              <QrCode className="h-3 w-3" />
-              PNG
-            </Button>
-            <Button 
-              onClick={() => handleDownload("svg")}
-              disabled={downloading}
-              variant="secondary"
-              className="text-xs"
-            >
-              <QrCode className="h-3 w-3" />
-              SVG
-            </Button>
+              Finish & View QR
+            </button>
           </div>
         </div>
       </div>
@@ -305,704 +250,382 @@ function PhonePreview({ profile, username }: { profile: ProfileData & { photoWid
   );
 }
 
-// ---------- Step Content ----------
-function StepBasic({ profile, setProfile, errors }: { 
-  profile: ProfileData; 
-  setProfile: (data: Partial<ProfileData>) => void;
-  errors: Record<string, string>;
+
+
+/* ------------------ STEP 1: BASIC INFO ------------------ */
+// Photo is optional and LAST.
+function StepBasic({
+  profile,
+  onChange,
+}: {
+  profile: Profile;
+  onChange: React.Dispatch<React.SetStateAction<Profile>>;
 }) {
   return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="photo">Profile photo</Label>
-        <div className="mt-2 flex items-center gap-4">
-          <img 
-            src={profile.profileImage} 
-            alt="Preview" 
-            className="h-16 w-16 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input 
-              id="photo" 
-              type="url" 
-              placeholder="Paste image URL…" 
-              value={profile.profileImage}
-              onChange={(e) => setProfile({ profileImage: e.target.value })}
-            />
-            <Button 
-              type="button" 
-              variant="secondary" 
-              onClick={() => alert("Hook up file picker / cropper here")}
-            >
-              Upload
-            </Button>
-          </div>
-        </div>
-        <Helper>Images are cropped to a circle. Recommended 400×400px.</Helper>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* Full name (required) */}
+      <div className="md:col-span-2">
+        <label className="mb-1 block text-sm font-medium text-gray-700">Full name</label>
+        <input
+          value={profile.fullName}
+          onChange={(e) => onChange((p) => ({ ...p, fullName: e.target.value }))}
+          placeholder="maria"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+        />
       </div>
 
+      {/* Title */}
       <div>
-        <Label htmlFor="name">Full name</Label>
-        <Input 
-          id="name" 
-          placeholder="Maria Alecu" 
-          value={profile.name}
-          ariaInvalid={Boolean(errors.name)}
-          onChange={(e) => setProfile({ name: e.target.value })}
-          required
+        <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
+        <input
+          value={profile.title}
+          onChange={(e) => onChange((p) => ({ ...p, title: e.target.value }))}
+          placeholder="e.g. Product Designer"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         />
-        {errors.name && (
-          <p role="alert" className="mt-1 text-xs text-red-600">{errors.name}</p>
+      </div>
+
+      {/* Bio */}
+      <div className="md:col-span-2">
+        <label className="mb-1 block text-sm font-medium text-gray-700">Short bio</label>
+        <textarea
+          value={profile.bio}
+          onChange={(e) => onChange((p) => ({ ...p, bio: e.target.value }))}
+          placeholder="One–two sentences about you."
+          rows={4}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+        />
+      </div>
+
+      {/* Avatar URL (optional) */}
+      <div className="md:col-span-2">
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          Profile photo (URL) <span className="text-gray-400">(optional)</span>
+        </label>
+        <input
+          value={profile.avatarUrl || ""}
+          onChange={(e) => onChange((p) => ({ ...p, avatarUrl: e.target.value }))}
+          placeholder="https://images.pexels.com/photo.jpg"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* --------------- STEP 2: CONTACT & LINKS --------------- */
+function StepContact({
+  profile,
+  onChange,
+}: {
+  profile: Profile;
+  onChange: React.Dispatch<React.SetStateAction<Profile>>;
+}) {
+  const [label, setLabel] = useState("LinkedIn");
+  const [url, setUrl] = useState("");
+
+  function add() {
+    if (!url.trim()) return;
+    onChange((p) => ({ ...p, socials: [...p.socials, { label: label.trim() || "Link", url: url.trim() }] }));
+    setUrl("");
+  }
+  function remove(i: number) {
+    onChange((p) => ({ ...p, socials: p.socials.filter((_, idx) => idx !== i) }));
+  }
+
+  return (
+    <>
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Phone</label>
+          <input
+            value={profile.phone || ""}
+            onChange={(e) => onChange((p) => ({ ...p, phone: e.target.value }))}
+            placeholder="+49 170 123 4567"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
+          <input
+            value={profile.location || ""}
+            onChange={(e) => onChange((p) => ({ ...p, location: e.target.value }))}
+            placeholder="Berlin, DE"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            Website <span className="text-gray-400">(optional)</span>
+          </label>
+          <input
+            value={profile.website || ""}
+            onChange={(e) => onChange((p) => ({ ...p, website: e.target.value }))}
+            placeholder="https://yourdomain.com"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          />
+        </div>
+      </div>
+
+      <div className="mb-2 text-sm font-medium text-gray-700">Socials</div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          placeholder="Label"
+        />
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="min-w-[220px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          placeholder="https://..."
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          Add Link
+        </button>
+      </div>
+
+      {profile.socials.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {profile.socials.map((s, i) => (
+            <span
+              key={`${s.label}-${i}`}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700"
+            >
+              <span className="font-medium">{s.label}:</span>
+              <a href={s.url} target="_blank" rel="noreferrer" className="truncate text-indigo-600 hover:underline">
+                {s.url}
+              </a>
+              <button onClick={() => remove(i)} className="text-gray-400 hover:text-gray-600">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* --------------- STEP 3: SERVICES & MEDIA --------------- */
+function StepMedia({
+  profile,
+  onChange,
+}: {
+  profile: Profile;
+  onChange: React.Dispatch<React.SetStateAction<Profile>>;
+}) {
+  const [service, setService] = useState("");
+  const [photo, setPhoto] = useState("");
+
+  function addService() {
+    if (!service.trim()) return;
+    onChange((p) => ({ ...p, services: [...p.services, service.trim()] }));
+    setService("");
+  }
+  function removeService(i: number) {
+    onChange((p) => ({ ...p, services: p.services.filter((_, idx) => idx !== i) }));
+  }
+  function addPhoto() {
+    if (!photo.trim()) return;
+    onChange((p) => ({ ...p, photos: [...p.photos, photo.trim()] }));
+    setPhoto("");
+  }
+  function removePhoto(i: number) {
+    onChange((p) => ({ ...p, photos: p.photos.filter((_, idx) => idx !== i) }));
+  }
+
+  return (
+    <>
+      <div className="mb-6">
+        <label className="mb-1 block text-sm font-medium text-gray-700">Services</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            placeholder="e.g. Brand Design"
+            className="min-w-[220px] flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          />
+          <button
+            type="button"
+            onClick={addService}
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Add Service
+          </button>
+        </div>
+        {profile.services.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {profile.services.map((s, i) => (
+              <span key={`${s}-${i}`} className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700">
+                {s}{" "}
+                <button className="ml-2 text-indigo-400 hover:text-indigo-600" onClick={() => removeService(i)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
-      <div>
-        <Label htmlFor="title">Title</Label>
-        <Input 
-          id="title" 
-          placeholder="Product Designer" 
-          value={profile.title}
-          onChange={(e) => setProfile({ title: e.target.value })}
+      <div className="mb-2 text-sm font-medium text-gray-700">Photos (3–6 URLs is perfect)</div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={photo}
+          onChange={(e) => setPhoto(e.target.value)}
+          placeholder="https://…"
+          className="min-w-[260px] flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
         />
-      </div>
-
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input 
-          id="email" 
-          type="email" 
-          placeholder="maria@example.com" 
-          value={profile.email}
-          ariaInvalid={Boolean(errors.email)}
-          onChange={(e) => setProfile({ email: e.target.value })} 
-          required
-        />
-        {errors.email && (
-          <p role="alert" className="mt-1 text-xs text-red-600">{errors.email}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="bio">Short bio</Label>
-        <Textarea 
-          id="bio" 
-          placeholder="One–two sentences about you." 
-          value={profile.bio}
-          onChange={(e) => setProfile({ bio: e.target.value })} 
-        />
-      </div>
-    </div>
-  );
-}
-
-function StepUsername({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  const [localUsername, setLocalUsername] = useState(profile.username || "");
-
-  const handleUsernameUpdate = (newUsername: string) => {
-    setLocalUsername(newUsername);
-    setProfile({ username: newUsername });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="username">Profile URL</Label>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-sm text-gray-500">qrprofile.com/</span>
-          <Input
-            id="username"
-            placeholder="your-username"
-            value={localUsername}
-            onChange={(e) => {
-              const username = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-              handleUsernameUpdate(username);
-            }}
-          />
-        </div>
-        <Helper>This will be your unique link to share with others.</Helper>
-      </div>
-    </div>
-  );
-}
-
-function StepBio({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="title">Job title</Label>
-        <Input 
-          id="title" 
-          placeholder="Product Designer" 
-          value={profile.title}
-          onChange={(e) => setProfile({ title: e.target.value })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="bio">Bio</Label>
-        <Textarea 
-          id="bio" 
-          placeholder="Tell people about yourself, your expertise, and what you're passionate about..." 
-          value={profile.bio}
-          onChange={(e) => setProfile({ bio: e.target.value })} 
-        />
-      </div>
-    </div>
-  );
-}
-
-function StepContact({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input 
-          id="email" 
-          type="email" 
-          placeholder="your.email@example.com" 
-          value={profile.email}
-          onChange={(e) => setProfile({ email: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="phone">Phone (optional)</Label>
-        <Input 
-          id="phone" 
-          type="tel" 
-          placeholder="+1 (555) 123-4567" 
-          value={profile.phone || ""}
-          onChange={(e) => setProfile({ phone: e.target.value })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="location">Location (optional)</Label>
-        <Input 
-          id="location" 
-          placeholder="San Francisco, CA" 
-          value={profile.location || ""}
-          onChange={(e) => setProfile({ location: e.target.value })}
-        />
-      </div>
-    </div>
-  );
-}
-
-function StepSocial({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  const socialLinks = profile.socialLinks || {};
-  
-  const updateSocialLink = (platform: string, value: string) => {
-    setProfile({
-      socialLinks: {
-        ...socialLinks,
-        [platform]: value
-      }
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="social-links">Social links</Label>
-        <Helper>Add links to your social media and website</Helper>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="linkedin">LinkedIn</Label>
-          <Input 
-            id="linkedin" 
-            type="url" 
-            placeholder="https://linkedin.com/in/yourprofile" 
-            value={socialLinks.linkedin || ""}
-            onChange={(e) => updateSocialLink('linkedin', e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="twitter">Twitter/X</Label>
-          <Input 
-            id="twitter" 
-            type="url" 
-            placeholder="https://twitter.com/yourhandle" 
-            value={socialLinks.twitter || ""}
-            onChange={(e) => updateSocialLink('twitter', e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="instagram">Instagram</Label>
-          <Input 
-            id="instagram" 
-            type="url" 
-            placeholder="https://instagram.com/yourhandle" 
-            value={socialLinks.instagram || ""}
-            onChange={(e) => updateSocialLink('instagram', e.target.value)}
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="website">Website</Label>
-          <Input 
-            id="website" 
-            type="url" 
-            placeholder="https://yourwebsite.com" 
-            value={socialLinks.website || ""}
-            onChange={(e) => updateSocialLink('website', e.target.value)}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepServices({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  const services = profile.services || [];
-  
-  const addService = () => {
-    setProfile({
-      services: [...services, { name: '', description: '', price: '' }]
-    });
-  };
-  
-  const updateService = (index: number, field: string, value: string) => {
-    const updatedServices = [...services];
-    updatedServices[index] = { ...updatedServices[index], [field]: value };
-    setProfile({ services: updatedServices });
-  };
-  
-  const removeService = (index: number) => {
-    setProfile({
-      services: services.filter((_: any, i: number) => i !== index)
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="services">Services</Label>
-        <Helper>Add the services you offer to your clients</Helper>
-      </div>
-      
-      <div className="space-y-4">
-        {services.map((service: any, index: number) => (
-          <div key={index} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-3">
-              <Label htmlFor={`service-${index}`}>Service {index + 1}</Label>
-              <Button 
-                variant="ghost" 
-                onClick={() => removeService(index)}
-                className="text-red-600 hover:text-red-700"
-              >
-                Remove
-              </Button>
-            </div>
-            
-            <div className="space-y-3">
-              <Input 
-                id={`service-${index}`}
-                placeholder="Service name" 
-                value={service.name}
-                onChange={(e) => updateService(index, 'name', e.target.value)}
-              />
-                             <Textarea 
-                 id={`service-desc-${index}`}
-                 placeholder="Service description" 
-                 value={service.description}
-                 onChange={(e) => updateService(index, 'description', e.target.value)}
-                 rows={2}
-               />
-               <Input 
-                 id={`service-price-${index}`}
-                 placeholder="Price (optional)" 
-                 value={service.price}
-                 onChange={(e) => updateService(index, 'price', e.target.value)}
-               />
-            </div>
-          </div>
-        ))}
-        
-        <Button 
-          variant="secondary" 
-          onClick={addService}
-          className="w-full"
+        <button
+          type="button"
+          onClick={addPhoto}
+          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          Add Service
-        </Button>
+          Add Photo
+        </button>
       </div>
-    </div>
-  );
-}
 
-function StepPhotos({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
-}) {
-  const photoWidgets = profile.photoWidgets || [];
-  
-  const addPhotoWidget = () => {
-    setProfile({
-      photoWidgets: [...photoWidgets, { 
-        id: Date.now().toString(), 
-        title: '', 
-        photos: [], 
-        layout: 'grid' 
-      }]
-    });
-  };
-  
-  const updatePhotoWidget = (index: number, field: string, value: any) => {
-    const updatedWidgets = [...photoWidgets];
-    updatedWidgets[index] = { ...updatedWidgets[index], [field]: value };
-    setProfile({ photoWidgets: updatedWidgets });
-  };
-  
-  const removePhotoWidget = (index: number) => {
-    setProfile({
-      photoWidgets: photoWidgets.filter((_: any, i: number) => i !== index)
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="photo-galleries">Photo galleries</Label>
-        <Helper>Showcase your work with beautiful photo collections</Helper>
-      </div>
-      
-      <div className="space-y-4">
-        {photoWidgets.map((widget: any, index: number) => (
-          <div key={widget.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-3">
-              <Label htmlFor={`widget-${index}`}>Gallery {index + 1}</Label>
-              <Button 
-                variant="ghost" 
-                onClick={() => removePhotoWidget(index)}
-                className="text-red-600 hover:text-red-700"
+      {profile.photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {profile.photos.map((src, i) => (
+            <div key={`${src}-${i}`} className="relative">
+              <img src={src} alt="" className="h-20 w-full rounded-md object-cover" />
+              <button
+                onClick={() => removePhoto(i)}
+                className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-xs text-white"
               >
-                Remove
-              </Button>
+                ×
+              </button>
             </div>
-            
-            <div className="space-y-3">
-              <Input 
-                id={`widget-${index}`}
-                placeholder="Gallery title" 
-                value={widget.title}
-                onChange={(e) => updatePhotoWidget(index, 'title', e.target.value)}
-              />
-              
-              <div>
-                <Label htmlFor={`layout-${index}`}>Layout</Label>
-                <select 
-                  id={`layout-${index}`}
-                  value={widget.layout}
-                  onChange={(e) => updatePhotoWidget(index, 'layout', e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white/80 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800/80"
-                >
-                  <option value="grid">Grid</option>
-                  <option value="carousel">Carousel</option>
-                </select>
-              </div>
-              
-              <div>
-                <Label htmlFor={`photos-${index}`}>Photo URLs (one per line)</Label>
-                <Textarea 
-                  id={`photos-${index}`}
-                  placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg" 
-                  value={widget.photos.join('\n')}
-                  onChange={(e) => updatePhotoWidget(index, 'photos', e.target.value.split('\n').filter(url => url.trim()))}
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-        
-        <Button 
-          variant="secondary" 
-          onClick={addPhotoWidget}
-          className="w-full"
-        >
-          Add Photo Gallery
-        </Button>
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
-function StepTheme({ profile, setProfile }: { 
-  profile: any; 
-  setProfile: (data: any) => void;
+/* --------------- STEP 4: THEME & PREVIEW --------------- */
+function StepTheme({
+  profile,
+  onChange,
+}: {
+  profile: Profile;
+  onChange: React.Dispatch<React.SetStateAction<Profile>>;
 }) {
-  const presets = [
-    { name: "Indigo Sky", from: "#6366F1", to: "#8B5CF6" },
-    { name: "Ocean", from: "#06B6D4", to: "#3B82F6" },
-    { name: "Sunset", from: "#F97316", to: "#EF4444" },
-    { name: "Forest", from: "#16A34A", to: "#22C55E" },
+  const PRESETS = [
+    { name: "Indigo Sky", from: "#4F46E5", to: "#6366F1" },
+    { name: "Sunset",     from: "#F97316", to: "#EF4444" },
+    { name: "Mint",       from: "#10B981", to: "#06B6D4" },
+    { name: "Royal",      from: "#7C3AED", to: "#2563EB" },
+    { name: "Candy",      from: "#EC4899", to: "#F59E0B" },
+    { name: "Night",      from: "#111827", to: "#374151" },
   ];
 
-  const update = (kv: any) => setProfile((p: any) => ({ ...p, ...kv }));
+  function applyPreset(p: { from: string; to: string }) {
+    onChange((prev) => ({ ...prev, themeFrom: p.from, themeTo: p.to }));
+  }
+  function randomize() {
+    const r = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+    applyPreset(r);
+  }
+  function revertBrand() {
+    onChange((prev) => ({ ...prev, themeFrom: "#4F46E5", themeTo: "#6366F1" }));
+  }
 
   return (
-        <div className="space-y-6">
+    <div className="space-y-6">
       {/* Presets */}
       <div>
-        <Label htmlFor="header-gradient">Header gradient</Label>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {presets.map(p => {
-            const active = profile.theme?.primary === p.from && profile.theme?.secondary === p.to;
+        <div className="mb-2 text-sm font-medium text-gray-700">Choose a preset</div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {PRESETS.map((g) => {
+            const active =
+              g.from.toLowerCase() === profile.themeFrom.toLowerCase() &&
+              g.to.toLowerCase() === profile.themeTo.toLowerCase();
             return (
               <button
-                key={p.name}
+                key={g.name}
                 type="button"
-                onClick={() => update({ 
-                  theme: { 
-                    primary: p.from, 
-                    secondary: p.to, 
-                    accent: p.to 
-                  } 
-                })}
-                className={classNames(
-                  "group overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm",
-                  active ? "border-indigo-500 ring-2 ring-indigo-500" : "hover:shadow-md"
+                aria-pressed={active}
+                onClick={() => applyPreset(g)}
+                className={clsx(
+                  "group relative h-14 rounded-xl border p-0.5 text-left transition",
+                  active ? "border-indigo-500 ring-2 ring-indigo-500/30" : "border-gray-200 hover:border-gray-300"
                 )}
               >
-                <div className="h-16" style={{ background: `linear-gradient(135deg, ${p.from} 0%, ${p.to} 100%)` }} />
-                <div className="px-3 py-2 text-center text-xs text-gray-700 dark:text-gray-300 group-hover:underline">
-                  {p.name}
-                </div>
+                <div
+                  className="h-full w-full rounded-lg"
+                  style={{ background: `linear-gradient(90deg, ${g.from}, ${g.to})` }}
+                />
+                <span className="pointer-events-none absolute inset-x-2 bottom-1 select-none rounded bg-black/40 px-1.5 text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100">
+                  {g.name}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Custom colors */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="from">From</Label>
-          <Input 
-            id="from" 
-            type="color" 
-            value={profile.theme?.primary || "#6366F1"}
-            onChange={(e) => update({ 
-              theme: { 
-                ...profile.theme, 
-                primary: e.target.value 
-              } 
-            })} 
-          />
-        </div>
-        <div>
-          <Label htmlFor="to">To</Label>
-          <Input 
-            id="to" 
-            type="color" 
-            value={profile.theme?.secondary || "#8B5CF6"}
-            onChange={(e) => update({ 
-              theme: { 
-                ...profile.theme, 
-                secondary: e.target.value 
-              } 
-            })} 
-          />
+      {/* Custom pickers */}
+      <div>
+        <div className="mb-2 text-sm font-medium text-gray-700">Fine-tune colors</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+            <input
+              type="color"
+              aria-label="From color"
+              value={profile.themeFrom}
+              onChange={(e) => onChange((p) => ({ ...p, themeFrom: e.target.value }))}
+              className="h-10 w-10 cursor-pointer rounded-md border border-gray-300"
+            />
+            <div className="flex-1">
+              <div className="text-xs font-medium text-gray-600">From</div>
+              <div className="text-sm text-gray-800">{profile.themeFrom}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+            <input
+              type="color"
+              aria-label="To color"
+              value={profile.themeTo}
+              onChange={(e) => onChange((p) => ({ ...p, themeTo: e.target.value }))}
+              className="h-10 w-10 cursor-pointer rounded-md border border-gray-300"
+            />
+            <div className="flex-1">
+              <div className="text-xs font-medium text-gray-600">To</div>
+              <div className="text-sm text-gray-800">{profile.themeTo}</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Preview */}
-      <div>
-        <Label htmlFor="preview">Preview</Label>
-        <div className="mt-2 h-16 rounded-xl border border-gray-200 dark:border-gray-800" 
-          style={{ 
-            background: `linear-gradient(135deg, ${profile.theme?.primary || "#6366F1"} 0%, ${profile.theme?.secondary || "#8B5CF6"} 100%)` 
-          }} 
-        />
+
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={randomize}
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Randomize
+        </button>
+        <button
+          type="button"
+          onClick={revertBrand}
+          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
+        >
+          Revert to Brand
+        </button>
       </div>
+
+      <p className="text-sm text-gray-500">
+        Tip: you can still tweak colors later. The preview on the right updates in real time.
+      </p>
     </div>
   );
 }
-
-// ---------- Main Component ----------
-const ProfileEditor: React.FC<ProfileEditorProps> = ({ profileData, onUpdate }) => {
-  const { user } = useAuth();
-  const { profile } = useProfile(user?.id || null);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Convert profileData to the format expected by the wizard
-  const wizardProfile: any = {
-    name: profileData.name || "",
-    title: profileData.title || "",
-    email: profileData.email || "",
-    bio: profileData.bio || "",
-    phone: profileData.phone || "",
-    location: profileData.location || "",
-    socialLinks: profileData.socialLinks || {},
-    services: profileData.services || [],
-    profileImage: profileData.profileImage || "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=400&auto=format&fit=crop",
-    gradientFrom: profileData.theme?.primary || "#6366F1",
-    gradientTo: profileData.theme?.secondary || "#8B5CF6",
-  };
-
-  const setWizardProfile = (updates: any) => {
-    // Convert wizard format back to profileData format
-    const profileUpdates: Partial<ProfileData> = {};
-    
-    if (updates.name !== undefined) profileUpdates.name = updates.name;
-    if (updates.title !== undefined) profileUpdates.title = updates.title;
-    if (updates.email !== undefined) profileUpdates.email = updates.email;
-    if (updates.bio !== undefined) profileUpdates.bio = updates.bio;
-    if (updates.phone !== undefined) profileUpdates.phone = updates.phone;
-    if (updates.location !== undefined) profileUpdates.location = updates.location;
-    if (updates.socialLinks !== undefined) profileUpdates.socialLinks = updates.socialLinks;
-    if (updates.services !== undefined) profileUpdates.services = updates.services;
-    if (updates.profileImage !== undefined) profileUpdates.profileImage = updates.profileImage;
-    if (updates.gradientFrom !== undefined || updates.gradientTo !== undefined) {
-      profileUpdates.theme = {
-        primary: updates.gradientFrom || profileData.theme?.primary || "#6366F1",
-        secondary: updates.gradientTo || profileData.theme?.secondary || "#8B5CF6",
-        accent: updates.gradientTo || profileData.theme?.accent || "#8B5CF6"
-      };
-    }
-    
-    onUpdate(profileUpdates);
-  };
-
-  const canNext = useMemo(() => {
-    if (currentStep === 1) {
-      const errs: Record<string, string> = {};
-      if (!wizardProfile.name?.trim()) errs.name = "Please enter your name.";
-      if (!wizardProfile.email?.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) errs.email = "Enter a valid email address.";
-      setErrors(errs);
-      return Object.keys(errs).length === 0;
-    }
-    return true;
-  }, [currentStep, wizardProfile.name, wizardProfile.email]);
-
-  const goNext = () => setCurrentStep(s => Math.min(STEPS.length, s + 1));
-  const goPrev = () => setCurrentStep(s => Math.max(1, s - 1));
-
-  // Data passed to the QR component
-  const profileForQr = {
-    username: (wizardProfile.username ?? "maria"),
-    name: (wizardProfile.name ?? "Maria Alecu"),
-    email: (wizardProfile.email ?? "maria@example.com"),
-    title: wizardProfile.title,
-    company: wizardProfile.company,
-    phone: wizardProfile.phone,
-    website: wizardProfile.website,
-    address: wizardProfile.location,
-    avatarUrl: wizardProfile.profileImage,
-    socials: wizardProfile.socialLinks,
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-4 py-8 text-gray-900 dark:from-gray-950 dark:to-gray-900 dark:text-gray-100">
-      <div className="mx-auto w-full max-w-6xl rounded-2xl border border-gray-200 bg-white/70 p-6 shadow-xl backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/70">
-        <WizardHeader currentStep={currentStep} />
-
-        <div className="grid gap-8 md:grid-cols-[1fr_420px]">
-          {/* Form Area */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            {currentStep === 1 && <StepBasic profile={wizardProfile} setProfile={setWizardProfile} errors={errors} />}
-            {currentStep === 2 && <StepUsername profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 3 && <StepBio profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 4 && <StepContact profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 5 && <StepSocial profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 6 && <StepServices profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 7 && <StepPhotos profile={wizardProfile} setProfile={setWizardProfile} />}
-            {currentStep === 8 && <StepTheme profile={wizardProfile} setProfile={setWizardProfile} />}
-
-            {/* Actions */}
-            <div className="mt-8 flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                onClick={goPrev} 
-                className={classNames(currentStep === 1 && "opacity-40 pointer-events-none")}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="secondary" 
-                  type="button" 
-                  onClick={() => alert("Saved! Hook to API")}
-                >
-                  Save Draft
-                </Button>
-                {currentStep < STEPS.length ? (
-                  <Button onClick={goNext} disabled={!canNext} aria-disabled={!canNext}>
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button onClick={() => alert("Published! Hook to API")}>
-                    Publish
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Preview Area */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Live preview</h2>
-              <span className="text-xs text-gray-500">Updates in real time</span>
-            </div>
-            <PhonePreview profile={profileData} username={wizardProfile.username} />
-          </div>
-
-          {/* QR Code (instant) */}
-          {currentStep === 8 && (
-            <div className="mt-8">
-              <QrCreator profile={profileForQr} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Sticky Actions (shown under md) */}
-      <div className="fixed inset-x-0 bottom-0 z-20 block border-t border-gray-200 bg-white/90 p-3 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90 md:hidden">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-          <Button 
-            variant="ghost" 
-            onClick={goPrev} 
-            className={classNames(currentStep === 1 && "opacity-40 pointer-events-none")}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-          {currentStep < STEPS.length ? (
-            <Button onClick={goNext} disabled={!canNext} aria-disabled={!canNext}>
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button onClick={() => alert("Published! Hook to API")}>
-              Publish
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ProfileEditor;
