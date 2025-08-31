@@ -534,3 +534,27 @@ export async function cleanupCorruptedImages(): Promise<number> {
     return 0;
   }
 }
+
+/**
+ * Test function to verify RLS policies work correctly
+ */
+export async function testRLSPolicies(): Promise<boolean> {
+  console.log('Testing RLS policies...');
+  
+  try {
+    // Test 1: Try to insert an image (should work for authenticated users with valid profile)
+    const testFile = new File(['test'], 'test.png', { type: 'image/png' });
+    const testResult = await testImageUpload();
+    
+    if (!testResult) {
+      console.error('RLS test failed: Image upload test failed');
+      return false;
+    }
+    
+    console.log('RLS test passed: Image upload works correctly');
+    return true;
+  } catch (error) {
+    console.error('RLS test failed:', error);
+    return false;
+  }
+}

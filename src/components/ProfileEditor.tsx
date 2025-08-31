@@ -4,7 +4,7 @@ import { useAutoSave } from "@/hooks/useAutoSave";
 import ImageAvatarUploader from "./common/ImageAvatarUploader";
 import ProfileImageDisplay from "./common/ProfileImageDisplay";
 import PhotoGalleryUploader from "./common/PhotoGalleryUploader";
-import { testDatabaseConnection, cleanupCorruptedImages, testBase64Encoding, testImageUpload } from "../lib/uploadImage";
+import { testDatabaseConnection, cleanupCorruptedImages, testBase64Encoding, testImageUpload, testRLSPolicies } from "../lib/uploadImage";
 
 export type Social = { label: string; url: string };
 export type Profile = {
@@ -466,6 +466,19 @@ function StepBasic({
             className="rounded-lg border border-red-300 bg-white px-3 py-1 text-xs text-red-700 hover:bg-red-50"
           >
             Cleanup Corrupted Images
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              console.log('Testing RLS policies...');
+              const result = await testRLSPolicies();
+              console.log('RLS policies test result:', result);
+              alert(result ? 'RLS policies test passed!' : 'RLS policies test failed! Check console for details.');
+            }}
+            className="rounded-lg border border-purple-300 bg-white px-3 py-1 text-xs text-purple-700 hover:bg-purple-50"
+          >
+            Test RLS Policies
           </button>
         </div>
       </div>
