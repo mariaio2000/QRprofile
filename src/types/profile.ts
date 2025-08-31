@@ -23,15 +23,24 @@ export interface Theme {
   accent: string;
 }
 
+export interface PhotoWidget {
+  id: string;
+  title: string;
+  photos: string[];
+  layout: 'grid' | 'carousel';
+}
+
 export interface ProfileData {
+  id?: string; // profile ID from database
   name: string;
   title: string;
   bio: string;
-  profileImage: string;
+  profile_image_id?: string; // database image ID instead of URL
   email: string;
   phone?: string;
   location?: string;
   socialLinks: SocialLinks;
   services: Service[];
+  photoWidgets?: PhotoWidget[];
   theme: Theme;
 }

@@ -4,6 +4,7 @@ import { Download, Share, Copy } from 'lucide-react';
 import { ProfileData } from '../types/profile';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../hooks/useAuth';
+import { getImageData, imageDataToBlobUrl } from '../lib/uploadImage';
 
 interface QRCodeGeneratorProps {
   profileData: ProfileData;
@@ -153,7 +154,25 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ profileData }) => {
           const dataUrl = canvas.toDataURL('image/png');
           setQrCodeUrl(dataUrl);
         };
-        profileImage.src = profileData.profileImage;
+        // Use the new database image system
+        if (profileData.profile_image_id) {
+          // Load image from database
+          getImageData(profileData.profile_image_id).then((imageData) => {
+            if (imageData) {
+              const blobUrl = imageDataToBlobUrl(imageData.data, imageData.mimeType);
+              profileImage.src = blobUrl;
+            } else {
+              // Fallback to default avatar
+              profileImage.src = `https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profileData.name || "User")}`;
+            }
+          }).catch(() => {
+            // Fallback to default avatar on error
+            profileImage.src = `https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profileData.name || "User")}`;
+          });
+        } else {
+          // Fallback to default avatar
+          profileImage.src = `https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profileData.name || "User")}`;
+        }
       };
       qrImage.src = qrCodeDataUrl;
     } catch (error) {

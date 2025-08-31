@@ -1,21 +1,38 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import clsx from "clsx";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import ImageAvatarUploader from "./common/ImageAvatarUploader";
+import ProfileImageDisplay from "./common/ProfileImageDisplay";
+import PhotoGalleryUploader from "./common/PhotoGalleryUploader";
+import { testDatabaseConnection, cleanupCorruptedImages, testBase64Encoding, testImageUpload } from "../lib/uploadImage";
 
 export type Social = { label: string; url: string };
 export type Profile = {
+  id?: string; // profile ID for database operations
   fullName: string;
   title: string;
   bio: string;
-  avatarUrl?: string;
+  profile_image_id?: string; // database image ID instead of URL
 
   phone?: string;
   location?: string;
   website?: string;
   socials: Social[];
 
-  services: string[];
-  photos: string[];
+  services: Array<{
+    id: string;
+    title: string;
+    description: string;
+    price: string;
+    featured: boolean;
+  }>;
+  photos: string[]; // array of image IDs
+  photoWidgets?: Array<{
+    id: string;
+    title: string;
+    photos: string[];
+    layout: 'grid' | 'carousel';
+  }>;
 
   themeFrom: string;
   themeTo: string;
@@ -42,16 +59,18 @@ const DEFAULT_AVATAR =
 `);
 
 const EMPTY: Profile = {
+  id: undefined,
   fullName: "",
   title: "",
   bio: "",
-  avatarUrl: "",
+  profile_image_id: "",
   phone: "",
   location: "",
   website: "",
   socials: [],
   services: [],
   photos: [],
+  photoWidgets: [],
   themeFrom: "#4F46E5",
   themeTo: "#6366F1",
 };
@@ -64,17 +83,47 @@ const STEPS = [
 ] as const;
 
 export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFinish }: Props) {
-  const [profile, setProfile] = useState<Profile>(() => ({
-    ...EMPTY,
-    ...initialProfile,
-    socials: initialProfile?.socials ?? [],
-    services: initialProfile?.services ?? [],
-    photos: initialProfile?.photos ?? [],
-  }));
+  const [profile, setProfile] = useState<Profile>(() => {
+    const initial = {
+      ...EMPTY,
+      ...initialProfile,
+      socials: initialProfile?.socials ?? [],
+      services: initialProfile?.services ?? [],
+      photos: initialProfile?.photos ?? [],
+      photoWidgets: initialProfile?.photoWidgets ?? [],
+    };
+    console.log('ProfileEditor initial profile state:', initial);
+    console.log('ProfileEditor initial profile.id:', initial.id);
+    return initial;
+  });
+
+  // Update profile when initialProfile changes
+  useEffect(() => {
+    if (initialProfile) {
+      console.log('ProfileEditor updating from initialProfile:', initialProfile);
+      console.log('ProfileEditor initialProfile.id:', initialProfile.id);
+      setProfile(prev => ({
+        ...EMPTY,
+        ...initialProfile,
+        socials: initialProfile?.socials ?? [],
+        services: initialProfile?.services ?? [],
+        photos: initialProfile?.photos ?? [],
+        photoWidgets: initialProfile?.photoWidgets ?? [],
+      }));
+    }
+  }, [initialProfile]);
+
+  // Debug: Log when profile ID becomes available
+  useEffect(() => {
+    console.log('ProfileEditor profile state:', profile);
+    console.log('ProfileEditor profile.id:', profile.id);
+  }, [profile]);
   const [stepIndex, setStepIndex] = useState(0);
-  const [avatarError, setAvatarError] = useState(false);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
 
+
+
+  // Debounced auto-save for database persistence
   useAutoSave(profile, async (p) => {
     try {
       setSaving("saving");
@@ -84,7 +133,7 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
     } catch {
       setSaving("idle");
     }
-  }, 600);
+  }, 300);
 
   // Optional localStorage autosave
   const LS_KEY = "qrp.editor";
@@ -132,8 +181,12 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex, canContinue, profile]);
 
-  const displayAvatar =
-    avatarError || !profile.avatarUrl?.trim() ? DEFAULT_AVATAR : profile.avatarUrl!.trim();
+  const displayAvatar = DEFAULT_AVATAR; // We'll use ProfileImageDisplay component instead
+
+  // Debug: Log profile data
+  useEffect(() => {
+    console.log('ProfileEditor profile data:', profile);
+  }, [profile]);
 
   return (
     <div className="relative mx-auto max-w-7xl px-4 pb-24 pt-10">
@@ -199,9 +252,9 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
                 background: `linear-gradient(90deg, ${profile.themeFrom}, ${profile.themeTo})`,
               }}
             >
-              <img
-                src={displayAvatar}
-                onError={() => setAvatarError(true)}
+              <ProfileImageDisplay
+                imageId={profile.profile_image_id}
+                fallbackUrl={`https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profile.fullName || "User")}`}
                 alt="Profile photo"
                 className="h-24 w-24 rounded-full border-4 border-white object-cover shadow"
               />
@@ -227,7 +280,15 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
           </div>
 
           <div className="flex items-center gap-2">
-            {onBack && (
+            {stepIndex > 0 ? (
+              <button
+                type="button"
+                onClick={back}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Back
+              </button>
+            ) : onBack ? (
               <button
                 type="button"
                 onClick={onBack}
@@ -235,14 +296,46 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
               >
                 Back
               </button>
-            )}
+            ) : null}
+            
+            {/* Save Button */}
             <button
               type="button"
-              onClick={onFinish}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              onClick={async () => {
+                try {
+                  setSaving("saving");
+                  await onAutoSave(profile);
+                  setSaving("saved");
+                  setTimeout(() => setSaving("idle"), 2000);
+                } catch (error) {
+                  console.error('Failed to save profile:', error);
+                  setSaving("idle");
+                }
+              }}
+              disabled={saving === "saving"}
+              className="rounded-lg border border-green-600 bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Finish & View QR
+              {saving === "saving" ? "Saving..." : saving === "saved" ? "Saved!" : "Save"}
             </button>
+            
+            {stepIndex < STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={next}
+                disabled={!canContinue}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onFinish}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              >
+                Finish & View QR
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -297,17 +390,84 @@ function StepBasic({
         />
       </div>
 
-      {/* Avatar URL (optional) */}
+      {/* Profile Photo Upload */}
       <div className="md:col-span-2">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          Profile photo (URL) <span className="text-gray-400">(optional)</span>
-        </label>
-        <input
-          value={profile.avatarUrl || ""}
-          onChange={(e) => onChange((p) => ({ ...p, avatarUrl: e.target.value }))}
-          placeholder="https://images.pexels.com/photo.jpg"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-        />
+        {profile.id ? (
+          <ImageAvatarUploader
+            value={profile.profile_image_id}
+            onChange={(imageId) => onChange((p) => ({ ...p, profile_image_id: imageId }))}
+            profileId={profile.id}
+            fallbackName={profile.fullName || "User"}
+          />
+        ) : (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Profile photo (JPG, JPEG, PNG)</label>
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-gray-200 animate-pulse"></div>
+              <div className="text-sm text-gray-500">
+                Loading profile... (ID: {profile.id || 'undefined'})
+              </div>
+            </div>
+            <div className="text-xs text-red-500">
+              Debug: profile.id = {JSON.stringify(profile.id)}
+            </div>
+          </div>
+        )}
+        
+        {/* Debug Test Buttons */}
+        <div className="mt-4 space-y-2">
+          <button
+            type="button"
+            onClick={async () => {
+              console.log('Testing database connection...');
+              const result = await testDatabaseConnection();
+              console.log('Database connection test result:', result);
+              alert(result ? 'Database connection successful!' : 'Database connection failed! Check console for details.');
+            }}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            Test DB Connection
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => {
+              console.log('Testing base64 encoding...');
+              const result = testBase64Encoding();
+              console.log('Base64 encoding test result:', result);
+              alert(result ? 'Base64 encoding test passed!' : 'Base64 encoding test failed! Check console for details.');
+            }}
+            className="rounded-lg border border-blue-300 bg-white px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
+          >
+            Test Base64 Encoding
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              console.log('Testing image upload...');
+              const result = await testImageUpload();
+              console.log('Image upload test result:', result);
+              alert(result ? 'Image upload test passed!' : 'Image upload test failed! Check console for details.');
+            }}
+            className="rounded-lg border border-green-300 bg-white px-3 py-1 text-xs text-green-700 hover:bg-green-50"
+          >
+            Test Image Upload
+          </button>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              console.log('Cleaning up corrupted images...');
+              const deletedCount = await cleanupCorruptedImages();
+              console.log('Cleanup result:', deletedCount);
+              alert(`Cleanup completed! Deleted ${deletedCount} corrupted images.`);
+            }}
+            className="rounded-lg border border-red-300 bg-white px-3 py-1 text-xs text-red-700 hover:bg-red-50"
+          >
+            Cleanup Corrupted Images
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -418,89 +578,93 @@ function StepMedia({
   profile: Profile;
   onChange: React.Dispatch<React.SetStateAction<Profile>>;
 }) {
-  const [service, setService] = useState("");
-  const [photo, setPhoto] = useState("");
+  const [serviceTitle, setServiceTitle] = useState("");
+  const [serviceDescription, setServiceDescription] = useState("");
+  const [servicePrice, setServicePrice] = useState("");
 
   function addService() {
-    if (!service.trim()) return;
-    onChange((p) => ({ ...p, services: [...p.services, service.trim()] }));
-    setService("");
+    if (!serviceTitle.trim()) return;
+    const newService = {
+      id: Date.now().toString(), // Simple ID generation
+      title: serviceTitle.trim(),
+      description: serviceDescription.trim(),
+      price: servicePrice.trim() || "Contact for pricing",
+      featured: false
+    };
+    onChange((p) => ({ ...p, services: [...p.services, newService] }));
+    setServiceTitle("");
+    setServiceDescription("");
+    setServicePrice("");
   }
   function removeService(i: number) {
     onChange((p) => ({ ...p, services: p.services.filter((_, idx) => idx !== i) }));
-  }
-  function addPhoto() {
-    if (!photo.trim()) return;
-    onChange((p) => ({ ...p, photos: [...p.photos, photo.trim()] }));
-    setPhoto("");
-  }
-  function removePhoto(i: number) {
-    onChange((p) => ({ ...p, photos: p.photos.filter((_, idx) => idx !== i) }));
   }
 
   return (
     <>
       <div className="mb-6">
         <label className="mb-1 block text-sm font-medium text-gray-700">Services</label>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={service}
-            onChange={(e) => setService(e.target.value)}
-            placeholder="e.g. Brand Design"
-            className="min-w-[220px] flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              value={serviceTitle}
+              onChange={(e) => setServiceTitle(e.target.value)}
+              placeholder="Service title (e.g. Brand Design)"
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            />
+            <input
+              value={servicePrice}
+              onChange={(e) => setServicePrice(e.target.value)}
+              placeholder="Price"
+              className="w-32 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            />
+            <button
+              type="button"
+              onClick={addService}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              Add
+            </button>
+          </div>
+          <textarea
+            value={serviceDescription}
+            onChange={(e) => setServiceDescription(e.target.value)}
+            placeholder="Service description (optional)"
+            rows={2}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           />
-          <button
-            type="button"
-            onClick={addService}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            Add Service
-          </button>
         </div>
         {profile.services.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {profile.services.map((s, i) => (
-              <span key={`${s}-${i}`} className="rounded-full bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700">
-                {s}{" "}
-                <button className="ml-2 text-indigo-400 hover:text-indigo-600" onClick={() => removeService(i)}>
-                  ×
-                </button>
-              </span>
+          <div className="mt-3 space-y-2">
+            {profile.services.map((service, i) => (
+              <div key={service.id} className="rounded-lg border border-gray-200 p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{service.title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">{service.price}</p>
+                  </div>
+                  <button className="ml-2 text-red-400 hover:text-red-600" onClick={() => removeService(i)}>
+                    ×
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="mb-2 text-sm font-medium text-gray-700">Photos (3–6 URLs is perfect)</div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input
-          value={photo}
-          onChange={(e) => setPhoto(e.target.value)}
-          placeholder="https://…"
-          className="min-w-[260px] flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+      {profile.id ? (
+        <PhotoGalleryUploader
+          value={profile.photos || []}
+          onChange={(imageIds) => onChange((p) => ({ ...p, photos: imageIds }))}
+          profileId={profile.id}
+          maxPhotos={6}
         />
-        <button
-          type="button"
-          onClick={addPhoto}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Add Photo
-        </button>
-      </div>
-
-      {profile.photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {profile.photos.map((src, i) => (
-            <div key={`${src}-${i}`} className="relative">
-              <img src={src} alt="" className="h-20 w-full rounded-md object-cover" />
-              <button
-                onClick={() => removePhoto(i)}
-                className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-xs text-white"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+      ) : (
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-700">Photos (JPG, JPEG, PNG)</label>
+          <div className="text-sm text-gray-500">Loading profile...</div>
         </div>
       )}
     </>

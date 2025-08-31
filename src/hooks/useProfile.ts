@@ -16,7 +16,7 @@ interface DatabaseProfile {
   name: string;
   title: string;
   bio: string;
-  profile_image: string;
+  profile_image_id: string | null; // database image ID
   email: string;
   phone: string | null;
   location: string | null;
@@ -56,6 +56,7 @@ export const useProfile = (userId: string | null) => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      console.log('Fetching profile for userId:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -66,13 +67,15 @@ export const useProfile = (userId: string | null) => {
         throw error;
       }
 
+      console.log('Profile data from database:', data);
       if (data) {
-        setProfile({
+        const profileData = {
+          id: data.id, // Include the profile ID
           username: data.username,
           name: data.name,
           title: data.title,
           bio: data.bio,
-          profileImage: data.profile_image,
+          profile_image_id: data.profile_image_id,
           email: data.email,
           phone: data.phone,
           location: data.location,
@@ -84,12 +87,91 @@ export const useProfile = (userId: string | null) => {
             secondary: '#EC4899',
             accent: '#F97316'
           }
-        });
+        };
+        console.log('Setting profile data:', profileData);
+        setProfile(profileData);
+      } else {
+        // No profile exists, create one automatically
+        console.log('No profile found, creating new profile for user:', userId);
+        await createDefaultProfile();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDefaultProfile = async () => {
+    if (!userId) throw new Error('User not authenticated');
+
+    try {
+      // Get user info from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not found');
+
+      // Generate username from email
+      let username = user.email?.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'user';
+      
+      // If username is too short or empty, use a fallback
+      if (username.length < 3) {
+        username = `user${Date.now().toString().slice(-6)}`;
+      }
+
+      // Create default profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: userId,
+          username: username.toLowerCase(),
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          title: '',
+          bio: '',
+          profile_image_id: null, // Already null, which is correct
+          email: user.email || '',
+          phone: '',
+          location: '',
+          social_links: {},
+          services: [],
+          photo_widgets: [],
+          theme: {
+            primary: '#8B5CF6',
+            secondary: '#EC4899',
+            accent: '#F97316'
+          }
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      const profileData = {
+        id: data.id,
+        username: data.username,
+        name: data.name,
+        title: data.title,
+        bio: data.bio,
+        profile_image_id: data.profile_image_id,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        socialLinks: data.social_links || {},
+        services: data.services || [],
+        photoWidgets: data.photo_widgets || [],
+        theme: data.theme || {
+          primary: '#8B5CF6',
+          secondary: '#EC4899',
+          accent: '#F97316'
+        }
+      };
+      
+      console.log('Created default profile:', profileData);
+      setProfile(profileData);
+      return data;
+    } catch (err) {
+      console.error('Failed to create default profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create default profile');
+      throw err;
     }
   };
 
@@ -105,7 +187,7 @@ export const useProfile = (userId: string | null) => {
           name: profileData.name,
           title: profileData.title,
           bio: profileData.bio,
-          profile_image: profileData.profileImage,
+          profile_image_id: profileData.profile_image_id || null, // Convert empty string to null
           email: profileData.email,
           phone: profileData.phone,
           location: profileData.location,
@@ -121,7 +203,8 @@ export const useProfile = (userId: string | null) => {
       
       setProfile({
         username: username.toLowerCase(),
-        ...profileData
+        ...profileData,
+        id: data.id // Include the profile ID from the database
       });
       return data;
     } catch (err) {
@@ -140,7 +223,7 @@ export const useProfile = (userId: string | null) => {
           name: updates.name,
           title: updates.title,
           bio: updates.bio,
-          profile_image: updates.profileImage,
+          profile_image_id: updates.profile_image_id || null, // Convert empty string to null
           email: updates.email,
           phone: updates.phone,
           location: updates.location,

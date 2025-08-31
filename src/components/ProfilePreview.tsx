@@ -18,7 +18,7 @@ const ProfilePreview: React.FC<ProfilePreviewProps> = ({ profileData }) => {
     username: profileData.username ?? "maria",
     name: profileData.name ?? "maria",
     email: profileData.email ?? "maria@example.com",
-    avatarUrl: profileData.profileImage,
+    avatarUrl: profileData.profile_image_id ? `image://${profileData.profile_image_id}` : undefined,
     title: profileData.title,
     company: profileData.company,
     phone: profileData.phone,

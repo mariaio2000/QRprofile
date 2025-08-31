@@ -1,4 +1,5 @@
 import React from "react";
+import ProfileImageDisplay from "./common/ProfileImageDisplay";
 
 export type Profile = {
   username: string;
@@ -9,10 +10,27 @@ export type Profile = {
   phone?: string;
   website?: string;
   address?: string;
-  avatarUrl?: string;
+  avatarUrl?: string; // This can be either a URL or an image ID
   socials?: { label: string; url: string }[];
-  // add any extra fields you have (services, bio, etc.)
   bio?: string;
+  services?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    price: string;
+    featured: boolean;
+  }>;
+  photoWidgets?: Array<{
+    id: string;
+    title: string;
+    photos: string[];
+    layout: 'grid' | 'carousel';
+  }>;
+  theme?: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
 };
 
 export default function PreviewSummary({ profile }: { profile: Profile }) {
@@ -35,8 +53,8 @@ export default function PreviewSummary({ profile }: { profile: Profile }) {
 
       <section className="rounded-3xl bg-white p-6 shadow-xl ring-1 ring-black/5">
         <div className="flex items-center gap-4">
-          <img
-            src={profile.avatarUrl}
+          <ProfileImageDisplay
+            imageId={profile.avatarUrl}
             alt=""
             className="h-16 w-16 rounded-full border-2 border-white object-cover shadow ring-1 ring-gray-200"
           />
@@ -73,6 +91,61 @@ export default function PreviewSummary({ profile }: { profile: Profile }) {
           />
           <Row label="Bio" value={profile.bio} />
         </div>
+
+        {/* Services Section */}
+        {profile.services && profile.services.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Services</h3>
+            <div className="space-y-4">
+              {profile.services.map((service) => (
+                <div key={service.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{service.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-lg font-semibold text-gray-900">{service.price}</span>
+                      {service.featured && (
+                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Featured
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Photo Widgets Section */}
+        {profile.photoWidgets && profile.photoWidgets.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Photo Galleries</h3>
+            <div className="space-y-6">
+              {profile.photoWidgets.map((widget) => (
+                <div key={widget.id} className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-3">{widget.title}</h4>
+                  <div className={`grid gap-2 ${widget.layout === 'grid' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                    {widget.photos.map((photoId, index) => (
+                      <div key={index} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                        <ProfileImageDisplay
+                          imageId={photoId}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">Layout: {widget.layout}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+
       </section>
     </main>
   );

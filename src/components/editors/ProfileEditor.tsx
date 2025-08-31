@@ -1,15 +1,19 @@
 import React, { useMemo, useState } from "react";
+import ImageAvatarUploader from "../common/ImageAvatarUploader";
+import ProfileImageDisplay from "../common/ProfileImageDisplay";
+import PhotoGalleryUploader from "../common/PhotoGalleryUploader";
 
 /** ==== Types (adjust to your existing app types if needed) ==== */
 export type SocialLink = { label: string; url: string };
 export type Profile = {
   // core
+  id?: string; // profile ID for database operations
   username: string; // already chosen at sign-up; shown read-only in header if you want
   name: string;
   title?: string;
   bio?: string;
   email?: string; // kept for preview but NOT editable here in Contact (comes from auth)
-  avatarUrl?: string;
+  profile_image_id?: string; // database image ID instead of URL
 
   // contact (kept minimal as requested)
   phone?: string;
@@ -19,7 +23,7 @@ export type Profile = {
   website?: string;
   socials?: SocialLink[];
   services?: string[];
-  photos?: string[];
+  photos?: string[]; // array of image IDs
 
   // theme
   theme?: {
@@ -122,11 +126,11 @@ function StepBasic({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Input
-          label="Profile photo (URL)"
-          value={p.avatarUrl}
-          onChange={(v) => setP({ avatarUrl: v })}
-          placeholder="https://…"
+        <ImageAvatarUploader
+          value={p.profile_image_id}
+          onChange={(imageId) => setP({ profile_image_id: imageId })}
+          profileId={p.id || ""}
+          fallbackName={p.name || "User"}
         />
         <Input
           label="Full name"
@@ -256,18 +260,11 @@ function StepServicesMedia({
   setP: (updates: Partial<Profile>) => void;
 }) {
   const [service, setService] = useState("");
-  const [photo, setPhoto] = useState("");
 
   const addService = () => {
     if (!service.trim()) return;
     setP({ services: [...(p.services || []), service.trim()] });
     setService("");
-  };
-
-  const addPhoto = () => {
-    if (!photo.trim()) return;
-    setP({ photos: [...(p.photos || []), photo.trim()] });
-    setPhoto("");
   };
 
   return (
@@ -307,52 +304,12 @@ function StepServicesMedia({
         </div>
       </div>
 
-      <div>
-        <div className="mb-2 text-sm font-medium text-gray-700">Photos</div>
-        <p className="mb-3 text-xs text-gray-500">
-          Paste image URLs (keep it light—3–6 images is perfect).
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {(p.photos || []).map((src, i) => (
-            <div key={src + i} className="relative">
-              <img
-                src={src}
-                alt=""
-                className="h-20 w-20 rounded-lg border border-gray-200 object-cover"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setP({
-                    photos: (p.photos || []).filter((_, idx) => idx !== i),
-                  })
-                }
-                className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-gray-500 shadow hover:text-gray-800"
-                aria-label="remove"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Input
-            label="Image URL"
-            value={photo}
-            onChange={setPhoto}
-            placeholder="https://…"
-          />
-          <div className="md:col-span-2 flex items-end">
-            <button
-              type="button"
-              onClick={addPhoto}
-              className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-            >
-              Add Photo
-            </button>
-          </div>
-        </div>
-      </div>
+      <PhotoGalleryUploader
+        value={p.photos || []}
+        onChange={(imageIds) => setP({ photos: imageIds })}
+        profileId={p.id || ""}
+        maxPhotos={6}
+      />
     </div>
   );
 }
@@ -412,10 +369,10 @@ function LivePreviewCard({ p }: { p: Profile }) {
         }}
       >
         <div className="mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={p.avatarUrl || "https://placehold.co/240x240?text=Avatar"}
-            alt=""
+          <ProfileImageDisplay
+            imageId={p.profile_image_id}
+            fallbackUrl={`https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(p.name || "User")}`}
+            alt="Profile"
             className="h-full w-full object-cover"
           />
         </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toPngDataURL, downloadDataUrl } from "../lib/qr";
 import QrQuick from "./QrQuick";
+import ProfileImageDisplay from "./common/ProfileImageDisplay";
 
 /** Keep in sync with your profile shape */
 export type Profile = {
@@ -190,7 +191,7 @@ function ClassicCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
     <div className="rounded-[28px] bg-white p-6 shadow-xl ring-1 ring-black/5 w-full max-w-sm mx-auto h-[520px] flex flex-col">
       <div className="overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-500 to-indigo-400 p-4">
         <div className="mx-auto h-20 w-20 overflow-hidden rounded-full ring-4 ring-white">
-          <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+          <ProfileImageDisplay imageId={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
         </div>
       </div>
       <div className="px-4 pb-4 pt-3 flex-1 flex flex-col">
@@ -216,7 +217,7 @@ function BoldDarkCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
           SHARE
         </div>
         <div className="relative mx-auto -mb-4 h-14 w-14">
-          <img src={profile.avatarUrl} alt="" className="h-14 w-14 rounded-full border-4 border-white object-cover shadow" />
+          <ProfileImageDisplay imageId={profile.avatarUrl} alt="" className="h-14 w-14 rounded-full border-4 border-white object-cover shadow" />
           <span className="absolute -left-2 -top-1 rounded-md bg-yellow-300 px-1.5 py-0.5 text-[10px] font-bold text-black shadow">
             PRO
           </span>
@@ -243,9 +244,7 @@ function BoldDarkCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
  * small avatar top-right; QR with tiny overlay logo centered.
  */
 function MinimalProCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
-  const avatar =
-    profile.avatarUrl ||
-    "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=256&auto=format&fit=crop";
+  const avatar = profile.avatarUrl;
 
   return (
     <div className="rounded-[28px] bg-white p-6 shadow-xl ring-1 ring-black/5 w-full max-w-sm mx-auto h-[520px] flex flex-col">
@@ -256,7 +255,7 @@ function MinimalProCard({ profile, qrUrl }: { profile: Profile; qrUrl: string })
           <span className="rounded-md bg-gray-100 px-2 py-1 text-[10px] font-semibold tracking-widest text-gray-700">
             WORK
           </span>
-          <img src={avatar} alt="" className="h-10 w-10 rounded-full border border-gray-200 object-cover shadow" />
+          <ProfileImageDisplay imageId={avatar} alt="" className="h-10 w-10 rounded-full border border-gray-200 object-cover shadow" />
         </div>
       </div>
 
@@ -275,8 +274,8 @@ function MinimalProCard({ profile, qrUrl }: { profile: Profile; qrUrl: string })
           <>
             <img src={qrUrl} alt="QR" className="h-[180px] w-[180px] rounded-xl bg-white p-2 shadow" />
             {/* mini overlay logo/avatar */}
-            <img
-              src={avatar}
+            <ProfileImageDisplay
+              imageId={avatar}
               alt=""
               className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
             />

@@ -59,6 +59,74 @@ export const useAuth = () => {
     });
 
     if (error) throw error;
+
+    // If signup was successful and we have a user, create a profile immediately
+    if (data.user) {
+      try {
+        console.log('Creating profile for new user:', data.user.id);
+        
+        // Generate username from email
+        let username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // If username is too short or empty, use a fallback
+        if (username.length < 3) {
+          username = `user${Date.now().toString().slice(-6)}`;
+        }
+
+        // Handle username conflicts by adding a number suffix
+        let finalUsername = username;
+        let counter = 1;
+        while (true) {
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('username', finalUsername)
+            .single();
+          
+          if (!existingProfile) {
+            break; // Username is available
+          }
+          finalUsername = `${username}${counter}`;
+          counter++;
+        }
+
+        // Create default profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            username: finalUsername,
+            name: name || email.split('@')[0] || 'User',
+            title: '',
+            bio: '',
+            profile_image_id: null, // Already null, which is correct
+            email: email,
+            phone: '',
+            location: '',
+            social_links: {},
+            services: [],
+            photo_widgets: [],
+            theme: {
+              primary: '#8B5CF6',
+              secondary: '#EC4899',
+              accent: '#F97316'
+            }
+          });
+
+        if (profileError) {
+          console.error('Failed to create profile during signup:', profileError);
+          // Don't throw error here as the user account was created successfully
+          // The profile will be created later by useProfile hook
+        } else {
+          console.log('Profile created successfully for new user:', finalUsername);
+        }
+      } catch (profileErr) {
+        console.error('Error creating profile during signup:', profileErr);
+        // Don't throw error here as the user account was created successfully
+        // The profile will be created later by useProfile hook
+      }
+    }
+
     return data;
   };
 

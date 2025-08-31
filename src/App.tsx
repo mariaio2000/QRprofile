@@ -10,11 +10,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 
 function toEditorModel(profileData: any): Profile {
-  return {
+  console.log('toEditorModel input:', profileData);
+  const result = {
+    id: profileData.id,
     fullName: profileData.name ?? "",
     title: profileData.title ?? "",
     bio: profileData.bio ?? "",
-    avatarUrl: profileData.profileImage ?? profileData.avatarUrl ?? "",
+    profile_image_id: profileData.profile_image_id ?? "",
 
     phone: profileData.phone ?? "",
     location: profileData.location ?? "",
@@ -32,6 +34,8 @@ function toEditorModel(profileData: any): Profile {
     themeFrom: profileData.theme?.primary ?? "#4F46E5",
     themeTo: profileData.theme?.secondary ?? "#6366F1",
   };
+  console.log('toEditorModel output:', result);
+  return result;
 }
 
 interface PhotoWidget {
@@ -51,7 +55,7 @@ function App() {
     name: '',
     title: '',
     bio: '',
-    profileImage: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=400',
+    profile_image_id: undefined,
     email: '',
     phone: '',
     location: '',
@@ -77,6 +81,7 @@ function App() {
   // Update profile data when user or profile changes
   useEffect(() => {
     if (user && profile) {
+      console.log('Setting profileData from profile:', profile);
       setProfileData({
         ...profile,
         photoWidgets: profile.photoWidgets || []
@@ -91,15 +96,24 @@ function App() {
     }
   }, [user, profile, profileLoading]);
 
+  // Debug: Log profileData when it changes
+  useEffect(() => {
+    console.log('profileData changed:', profileData);
+    console.log('profileData.id:', profileData.id);
+  }, [profileData]);
+
   const handleProfileUpdate = async (newData: Partial<ProfileData & { photoWidgets?: PhotoWidget[] }>) => {
     const updatedData = { ...profileData, ...newData };
     setProfileData(updatedData);
 
     if (user) {
       try {
+        console.log('Profile update triggered:', { user: user.id, profile: !!profile, newData });
         if (profile) {
+          console.log('Updating existing profile');
           await updateProfile(newData);
         } else {
+          console.log('Creating new profile');
           // Create profile if it doesn't exist
           // Generate username from email or use a default
           let username = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -109,12 +123,15 @@ function App() {
             username = `user${Date.now().toString().slice(-6)}`;
           }
           
+          console.log('Creating profile with username:', username);
           await createProfile(updatedData, username);
         }
       } catch (error) {
         console.error('Failed to save profile:', error);
         // You might want to show an error message to the user here
       }
+    } else {
+      console.log('No user found, cannot save profile');
     }
   };
 
@@ -138,7 +155,7 @@ function App() {
         name: '',
         title: '',
         bio: '',
-        profileImage: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=400',
+        profile_image_id: undefined,
         email: '',
         phone: '',
         location: '',
@@ -158,11 +175,13 @@ function App() {
 
   // Auto-save callback for ProfileEditor
   const handleAutoSave = useCallback(async (profile: Profile) => {
+    console.log('handleAutoSave called with profile:', profile);
+    
     const updateData = {
       name: profile.fullName,
       title: profile.title,
       bio: profile.bio,
-      profileImage: profile.avatarUrl,
+      profile_image_id: profile.profile_image_id || null, // Convert empty string to null
       phone: profile.phone,
       location: profile.location,
       website: profile.website,
@@ -172,6 +191,7 @@ function App() {
       }, {} as Record<string, string>),
       services: profile.services,
       photos: profile.photos,
+      photoWidgets: profile.photoWidgets || [],
       theme: {
         primary: profile.themeFrom,
         secondary: profile.themeTo,
@@ -179,7 +199,19 @@ function App() {
       }
     };
     
-    await handleProfileUpdate(updateData);
+    console.log('handleAutoSave updateData:', updateData);
+    
+    // Update local state immediately for real-time preview
+    setProfileData(prev => {
+      const newData = { ...prev, ...updateData };
+      console.log('handleAutoSave updating profileData from:', prev, 'to:', newData);
+      return newData;
+    });
+    
+    // Also update database (but don't await it to avoid blocking UI)
+    handleProfileUpdate(updateData).catch(error => {
+      console.error('Failed to save to database:', error);
+    });
   }, [handleProfileUpdate]);
 
   const handleBackToHome = () => {
@@ -267,17 +299,28 @@ function App() {
             </div>
         ) : (
           <>
-            {currentView === 'edit' && (
-              <ProfileEditor 
-                initialProfile={toEditorModel(profileData)}
-                onAutoSave={handleAutoSave}
-                onBack={() => setCurrentView('preview')}
-                onFinish={() => setCurrentView('qr')}
-              />
-            )}
+            {currentView === 'edit' && (() => {
+              const editorProfile = toEditorModel(profileData);
+              console.log('Passing to ProfileEditor:', editorProfile);
+              console.log('ProfileEditor profile.id:', editorProfile.id);
+              return (
+                <ProfileEditor 
+                  initialProfile={editorProfile}
+                  onAutoSave={handleAutoSave}
+                  onBack={() => setCurrentView('preview')}
+                  onFinish={() => setCurrentView('qr')}
+                />
+              );
+            })()}
             
-            {currentView === 'preview' && (
-              <PreviewSummary profile={{
+            {currentView === 'preview' && (() => {
+              console.log('Current profileData:', profileData);
+              console.log('profileData.services:', profileData.services);
+              console.log('profileData.photoWidgets:', profileData.photoWidgets);
+              console.log('profileData.theme:', profileData.theme);
+              console.log('profileData.socialLinks:', profileData.socialLinks);
+              
+              const previewProfile = {
                 username: profile?.username || 'user',
                 name: profileData.name || '',
                 title: profileData.title,
@@ -286,16 +329,21 @@ function App() {
                 phone: profileData.phone,
                 website: profileData.socialLinks?.website,
                 address: profileData.location,
-                avatarUrl: profileData.profileImage,
+                avatarUrl: profileData.profile_image_id, // Use the image ID instead of URL
                 socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
                   .filter(([_, url]) => url)
                   .map(([platform, url]) => ({
                     label: platform.charAt(0).toUpperCase() + platform.slice(1),
                     url: url as string
                   })) : [],
-                bio: profileData.bio
-              }} />
-            )}
+                bio: profileData.bio,
+                services: profileData.services || [],
+                photoWidgets: profileData.photoWidgets || [],
+                theme: profileData.theme
+              };
+              console.log('PreviewSummary profile data:', previewProfile);
+              return <PreviewSummary profile={previewProfile} />;
+            })()}
             
             {currentView === 'qr' && (
               <QrCodeTab profile={{
@@ -307,13 +355,16 @@ function App() {
                 phone: profileData.phone,
                 website: profileData.socialLinks?.website,
                 address: profileData.location,
-                avatarUrl: profileData.profileImage,
+                avatarUrl: profileData.profile_image_id, // Use the image ID instead of URL
                 socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
                   .filter(([_, url]) => url)
                   .map(([platform, url]) => ({
                     label: platform.charAt(0).toUpperCase() + platform.slice(1),
                     url: url as string
-                  })) : []
+                  })) : [],
+                services: profileData.services || [],
+                photoWidgets: profileData.photoWidgets || [],
+                theme: profileData.theme
               }} />
             )}
           </>

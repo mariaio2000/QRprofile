@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
+import ProfileImageDisplay from "./common/ProfileImageDisplay";
 
 export type Profile = {
   username: string;
@@ -133,7 +134,12 @@ function ClassicCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
     <div className="rounded-3xl bg-white p-6 shadow-xl ring-1 ring-black/5">
       <div className="overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-500 to-indigo-400 p-6">
         <div className="mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-white">
-          <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+          <ProfileImageDisplay
+            imageId={profile.avatarUrl?.startsWith('image://') ? profile.avatarUrl.substring(8) : undefined}
+            fallbackUrl={`https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profile.name || "User")}`}
+            alt="Profile photo"
+            className="h-full w-full object-cover"
+          />
         </div>
       </div>
       <div className="px-4 pb-6 pt-4">
@@ -167,7 +173,12 @@ function BoldDarkCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
           SHARE
         </div>
         <div className="relative mx-auto -mb-6 h-16 w-16">
-          <img src={profile.avatarUrl} alt="" className="h-16 w-16 rounded-full border-4 border-white object-cover shadow" />
+          <ProfileImageDisplay
+            imageId={profile.avatarUrl?.startsWith('image://') ? profile.avatarUrl.substring(8) : undefined}
+            fallbackUrl={`https://api.dicebear.com/7.x/initials/jpg?seed=${encodeURIComponent(profile.name || "User")}`}
+            alt="Profile photo"
+            className="h-16 w-16 rounded-full border-4 border-white object-cover shadow"
+          />
           <span className="absolute -left-2 -top-1 rounded-md bg-yellow-300 px-1.5 py-0.5 text-[10px] font-bold text-black shadow">
             PRO
           </span>
