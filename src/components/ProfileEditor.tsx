@@ -4,7 +4,7 @@ import { useAutoSave } from "@/hooks/useAutoSave";
 import ImageAvatarUploader from "./common/ImageAvatarUploader";
 import ProfileImageDisplay from "./common/ProfileImageDisplay";
 import PhotoGalleryUploader from "./common/PhotoGalleryUploader";
-import { testDatabaseConnection, cleanupCorruptedImages, testBase64Encoding, testImageUpload, testRLSPolicies } from "../lib/uploadImage";
+
 
 export type Social = { label: string; url: string };
 export type Profile = {
@@ -414,77 +414,7 @@ function StepBasic({
           </div>
         )}
         
-        {/* Debug Test Buttons */}
-        <div className="mt-4 space-y-2">
-          <button
-            type="button"
-            onClick={async () => {
-              console.log('Testing database connection...');
-              const result = await testDatabaseConnection();
-              console.log('Database connection test result:', result);
-              alert(result ? 'Database connection successful!' : 'Database connection failed! Check console for details.');
-            }}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            Test DB Connection
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => {
-              console.log('Testing base64 encoding...');
-              const result = testBase64Encoding();
-              console.log('Base64 encoding test result:', result);
-              alert(result ? 'Base64 encoding test passed!' : 'Base64 encoding test failed! Check console for details.');
-            }}
-            className="rounded-lg border border-blue-300 bg-white px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
-          >
-            Test Base64 Encoding
-          </button>
-          
-          <button
-            type="button"
-            onClick={async () => {
-              console.log('Testing image upload...');
-              const result = await testImageUpload();
-              console.log('Image upload test result:', result);
-              alert(result ? 'Image upload test passed!' : 'Image upload test failed! Check console for details.');
-            }}
-            className="rounded-lg border border-green-300 bg-white px-3 py-1 text-xs text-green-700 hover:bg-green-50"
-          >
-            Test Image Upload
-          </button>
-          
-          <button
-            type="button"
-            onClick={async () => {
-              console.log('Cleaning up corrupted images...');
-              const deletedCount = await cleanupCorruptedImages();
-              console.log('Cleanup result:', deletedCount);
-              alert(`Cleanup completed! Deleted ${deletedCount} corrupted images.`);
-            }}
-            className="rounded-lg border border-red-300 bg-white px-3 py-1 text-xs text-red-700 hover:bg-red-50"
-          >
-            Cleanup Corrupted Images
-          </button>
-          
-          <button
-            type="button"
-            onClick={async () => {
-              console.log('Testing RLS policies...');
-              const result = await testRLSPolicies();
-              console.log('RLS policy test result:', result);
-              if (result.success) {
-                alert('RLS policies are working correctly! Check console for details.');
-              } else {
-                alert('RLS policy test failed! Check console for details.');
-              }
-            }}
-            className="rounded-lg border border-purple-300 bg-white px-3 py-1 text-xs text-purple-700 hover:bg-purple-50"
-          >
-            Test RLS Policies
-          </button>
-        </div>
+
       </div>
     </div>
   );
