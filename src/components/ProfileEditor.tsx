@@ -30,7 +30,7 @@ export type Profile = {
   photoWidgets?: Array<{
     id: string;
     title: string;
-    photos: string[];
+  photos: string[];
     layout: 'grid' | 'carousel';
   }>;
 
@@ -103,11 +103,11 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
       console.log('ProfileEditor updating from initialProfile:', initialProfile);
       console.log('ProfileEditor initialProfile.id:', initialProfile.id);
       setProfile(prev => ({
-        ...EMPTY,
-        ...initialProfile,
-        socials: initialProfile?.socials ?? [],
-        services: initialProfile?.services ?? [],
-        photos: initialProfile?.photos ?? [],
+    ...EMPTY,
+    ...initialProfile,
+    socials: initialProfile?.socials ?? [],
+    services: initialProfile?.services ?? [],
+    photos: initialProfile?.photos ?? [],
         photoWidgets: initialProfile?.photoWidgets ?? [],
       }));
     }
@@ -328,13 +328,13 @@ export default function ProfileEditor({ initialProfile, onAutoSave, onBack, onFi
                 Next
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onFinish}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                Finish & View QR
-              </button>
+            <button
+              type="button"
+              onClick={onFinish}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              Finish & View QR
+            </button>
             )}
           </div>
         </div>
@@ -473,8 +473,12 @@ function StepBasic({
             onClick={async () => {
               console.log('Testing RLS policies...');
               const result = await testRLSPolicies();
-              console.log('RLS policies test result:', result);
-              alert(result ? 'RLS policies test passed!' : 'RLS policies test failed! Check console for details.');
+              console.log('RLS policy test result:', result);
+              if (result.success) {
+                alert('RLS policies are working correctly! Check console for details.');
+              } else {
+                alert('RLS policy test failed! Check console for details.');
+              }
             }}
             className="rounded-lg border border-purple-300 bg-white px-3 py-1 text-xs text-purple-700 hover:bg-purple-50"
           >
@@ -625,19 +629,19 @@ function StepMedia({
               placeholder="Service title (e.g. Brand Design)"
               className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
-            <input
+          <input
               value={servicePrice}
               onChange={(e) => setServicePrice(e.target.value)}
               placeholder="Price"
               className="w-32 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <button
-              type="button"
-              onClick={addService}
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
+          />
+          <button
+            type="button"
+            onClick={addService}
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
               Add
-            </button>
+          </button>
           </div>
           <textarea
             value={serviceDescription}
@@ -658,8 +662,8 @@ function StepMedia({
                     <p className="text-sm font-medium text-gray-900 mt-1">{service.price}</p>
                   </div>
                   <button className="ml-2 text-red-400 hover:text-red-600" onClick={() => removeService(i)}>
-                    ×
-                  </button>
+                  ×
+                </button>
                 </div>
               </div>
             ))}

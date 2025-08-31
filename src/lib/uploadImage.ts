@@ -457,6 +457,78 @@ export async function testImageUpload(): Promise<boolean> {
 }
 
 /**
+ * Test RLS policies for profile_images table
+ */
+export async function testRLSPolicies(): Promise<{ success: boolean; details: string[] }> {
+  try {
+    console.log('testRLSPolicies: Testing RLS policies...');
+    
+    const details: string[] = [];
+    
+    // Test 1: Check if we can upload an image (authenticated user)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id')
+      .limit(1);
+    
+    if (!profiles || profiles.length === 0) {
+      details.push('No profiles found to test with');
+      return { success: false, details };
+    }
+    
+    const profileId = profiles[0].id;
+    details.push(`Using profile ID: ${profileId}`);
+    
+    // Create a small test PNG file
+    const pngData = new Uint8Array([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00,
+      0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0x99, 0x63, 0xF8, 0xCF, 0xCF, 0x00,
+      0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00,
+      0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+    ]);
+    
+    const testFile = new File([pngData], 'test.png', { type: 'image/png' });
+    
+    // Test upload
+    const imageId = await uploadImage(testFile, profileId);
+    if (!imageId) {
+      details.push('Failed to upload test image - RLS policy may be blocking INSERT');
+      return { success: false, details };
+    }
+    details.push(`Successfully uploaded test image with ID: ${imageId}`);
+    
+    // Test retrieval
+    const imageData = await getImageData(imageId);
+    if (!imageData) {
+      details.push('Failed to retrieve test image - RLS policy may be blocking SELECT');
+      await deleteImage(imageId);
+      return { success: false, details };
+    }
+    details.push(`Successfully retrieved test image, size: ${imageData.data.length} bytes`);
+    
+    // Test deletion
+    const deleteSuccess = await deleteImage(imageId);
+    if (!deleteSuccess) {
+      details.push('Failed to delete test image - RLS policy may be blocking DELETE');
+      return { success: false, details };
+    }
+    details.push('Successfully deleted test image');
+    
+    details.push('All RLS policy tests passed!');
+    return { success: true, details };
+    
+  } catch (error) {
+    console.error('testRLSPolicies: Error:', error);
+    return { 
+      success: false, 
+      details: [`Error testing RLS policies: ${error}`] 
+    };
+  }
+}
+
+/**
  * Clean up corrupted image data from the database
  */
 export async function cleanupCorruptedImages(): Promise<number> {
@@ -532,29 +604,5 @@ export async function cleanupCorruptedImages(): Promise<number> {
   } catch (error) {
     console.error('cleanupCorruptedImages: Unexpected error:', error);
     return 0;
-  }
-}
-
-/**
- * Test function to verify RLS policies work correctly
- */
-export async function testRLSPolicies(): Promise<boolean> {
-  console.log('Testing RLS policies...');
-  
-  try {
-    // Test 1: Try to insert an image (should work for authenticated users with valid profile)
-    const testFile = new File(['test'], 'test.png', { type: 'image/png' });
-    const testResult = await testImageUpload();
-    
-    if (!testResult) {
-      console.error('RLS test failed: Image upload test failed');
-      return false;
-    }
-    
-    console.log('RLS test passed: Image upload works correctly');
-    return true;
-  } catch (error) {
-    console.error('RLS test failed:', error);
-    return false;
   }
 }
