@@ -156,9 +156,6 @@ function ClassicCard({ profile, qrUrl }: { profile: Profile; qrUrl: string }) {
           <button className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
             Copy Link
           </button>
-          <button className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Download PNG
-          </button>
         </div>
       </div>
     </div>

@@ -169,15 +169,6 @@ export default function QrCreator({ profile, publicOrigin }: Props) {
   }
 
   // Downloads
-  const downloadPNG = () => {
-    if (!canvasRef.current) return;
-    const url = canvasRef.current.toDataURL("image/png");
-    toBlobDownload(dataURLtoBlob(url), buildFileName() + ".png");
-  };
-  const downloadSVG = () => {
-    if (!svgData) return;
-    toBlobDownload(svgData, buildFileName() + ".svg", "image/svg+xml");
-  };
   const downloadVCF = () => {
     toBlobDownload(vcf, `${profile.username || "contact"}.vcf`, "text/vcard");
   };
@@ -305,12 +296,6 @@ export default function QrCreator({ profile, publicOrigin }: Props) {
       <div className="flex items-center gap-6 rounded-2xl border border-gray-200 bg-white p-4">
         <canvas ref={canvasRef} width={size} height={size} aria-label="QR preview" className="h-48 w-48" />
         <div className="flex flex-col gap-2">
-          <button onClick={downloadPNG} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Download PNG
-          </button>
-          <button onClick={downloadSVG} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
-            Download SVG
-          </button>
           {mode === "vcard" && (
             <button onClick={downloadVCF} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
               Download .VCF

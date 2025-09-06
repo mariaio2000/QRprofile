@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toPngDataURL, downloadDataUrl } from "../lib/qr";
-import QrQuick from "./QrQuick";
 import ProfileImageDisplay from "./common/ProfileImageDisplay";
 
 /** Keep in sync with your profile shape */
@@ -87,10 +86,6 @@ export default function QrCodeTab({
 
   // Actions
   const copyLink = () => navigator.clipboard.writeText(profileUrl);
-  async function downloadPng() {
-    if (!qrUrl) return;
-    downloadDataUrl(qrUrl, `${profile.username || "qr"}-share.png`);
-  }
 
   return (
     <main className="mx-auto mt-6 max-w-3xl px-4">
@@ -99,9 +94,6 @@ export default function QrCodeTab({
         <div className="flex items-center gap-3">
           <button onClick={copyLink} className="rounded-xl border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">
             Copy Link
-          </button>
-          <button onClick={downloadPng} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Download PNG
           </button>
         </div>
       </header>
@@ -151,22 +143,6 @@ export default function QrCodeTab({
         </div>
       </section>
 
-      {/* Quick QR Generator */}
-      <section className="mt-12 mx-auto max-w-2xl">
-        <div className="text-center mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Quick QR Generator</h2>
-          <p className="text-sm text-gray-600">Generate and download QR codes in multiple formats</p>
-        </div>
-        <QrQuick
-          text={profileUrl}
-          filename={profile?.username || "qr"}
-          size={1024}
-          margin={3}
-          ecc="Q"
-          fg="#1F2937"
-          bg="#FFFFFF"
-        />
-      </section>
     </main>
   );
 }

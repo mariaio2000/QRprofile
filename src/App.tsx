@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LandingPage from '@/components/LandingPage';
 import ProfileEditor, { type Profile } from '@/components/ProfileEditor';
-import PreviewSummary, { type Profile as PreviewProfile } from '@/components/PreviewSummary';
+import ProfileSummary from '@/components/ProfileSummary';
 import QrCodeTab, { type Profile as QrProfile } from '@/components/QrCodeTab';
 import Navigation from '@/components/Navigation';
 import PublicProfile from '@/components/PublicProfile';
@@ -314,35 +314,8 @@ function App() {
             })()}
             
             {currentView === 'preview' && (() => {
-              console.log('Current profileData:', profileData);
-              console.log('profileData.services:', profileData.services);
-              console.log('profileData.photoWidgets:', profileData.photoWidgets);
-              console.log('profileData.theme:', profileData.theme);
-              console.log('profileData.socialLinks:', profileData.socialLinks);
-              
-              const previewProfile = {
-                username: profile?.username || 'user',
-                name: profileData.name || '',
-                title: profileData.title,
-                company: profileData.company,
-                email: profileData.email,
-                phone: profileData.phone,
-                website: profileData.socialLinks?.website,
-                address: profileData.location,
-                avatarUrl: profileData.profile_image_id, // Use the image ID instead of URL
-                socials: profileData.socialLinks ? Object.entries(profileData.socialLinks)
-                  .filter(([_, url]) => url)
-                  .map(([platform, url]) => ({
-                    label: platform.charAt(0).toUpperCase() + platform.slice(1),
-                    url: url as string
-                  })) : [],
-                bio: profileData.bio,
-                services: profileData.services || [],
-                photoWidgets: profileData.photoWidgets || [],
-                theme: profileData.theme
-              };
-              console.log('PreviewSummary profile data:', previewProfile);
-              return <PreviewSummary profile={previewProfile} />;
+              console.log('Rendering ProfileSummary component');
+              return <ProfileSummary />;
             })()}
             
             {currentView === 'qr' && (

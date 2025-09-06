@@ -48,15 +48,6 @@ export default function ShareTemplatePicker({
     if (!profileUrl) return;
     navigator.clipboard.writeText(profileUrl);
   }
-  async function downloadPng() {
-    if (!qrUrl) return;
-    const blob = await (await fetch(qrUrl)).blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${profile.username || "qr"}-share.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-  }
 
   return (
     <section className="mx-auto mt-10 max-w-xl space-y-6">
@@ -82,9 +73,9 @@ export default function ShareTemplatePicker({
       </div>
 
       {template === "classic" ? (
-        <Classic profile={profile} qrUrl={qrUrl} onCopy={copyLink} onDownload={downloadPng} />
+        <Classic profile={profile} qrUrl={qrUrl} onCopy={copyLink} />
       ) : (
-        <BoldDark profile={profile} qrUrl={qrUrl} onCopy={copyLink} onDownload={downloadPng} />
+        <BoldDark profile={profile} qrUrl={qrUrl} onCopy={copyLink} />
       )}
     </section>
   );
@@ -124,12 +115,10 @@ function Classic({
   profile,
   qrUrl,
   onCopy,
-  onDownload,
 }: {
   profile: Profile;
   qrUrl: string;
   onCopy: () => void;
-  onDownload: () => void;
 }) {
   return (
     <div className="rounded-3xl bg-white p-6 shadow-xl ring-1 ring-black/5">
@@ -155,9 +144,6 @@ function Classic({
           <button onClick={onCopy} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
             Copy Link
           </button>
-          <button onClick={onDownload} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Download PNG
-          </button>
         </div>
       </div>
     </div>
@@ -168,12 +154,10 @@ function BoldDark({
   profile,
   qrUrl,
   onCopy,
-  onDownload,
 }: {
   profile: Profile;
   qrUrl: string;
   onCopy: () => void;
-  onDownload: () => void;
 }) {
   return (
     <div className="rounded-[28px] bg-white p-5 shadow-2xl ring-1 ring-black/5">
@@ -207,11 +191,6 @@ function BoldDark({
         </button>
       </div>
 
-      <div className="mt-3 flex justify-center">
-        <button onClick={onDownload} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
-          Download PNG
-        </button>
-      </div>
     </div>
   );
 }

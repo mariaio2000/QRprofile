@@ -68,20 +68,6 @@ export default function QrQuick({
           >
             Copy Link
           </button>
-          <button
-            onClick={() => png && downloadDataUrl(png, `${filename}.png`)}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            disabled={!png}
-          >
-            Download PNG
-          </button>
-          <button
-            onClick={() => svg && downloadSvg(svg, `${filename}.svg`)}
-            className="rounded-xl border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-            disabled={!svg}
-          >
-            Download SVG
-          </button>
         </div>
       )}
 
